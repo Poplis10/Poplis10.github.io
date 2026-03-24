@@ -724,34 +724,55 @@ async function shareToKeep() {
 		return
 	}
 
-	// Tworzymy tekst z "pustymi polami", które Keep zamieni na listę zadań
-	let text = '🛒 MOJA LISTA ZAKUPÓW:\n'
-	items.forEach(item => {
+	// 1. Budujemy tekst listy (czysta lista produktów)
+	let text = ''
+	items.forEach((item, index) => {
 		const qty = item.querySelector('strong').innerText
 		const name = item.querySelector('span').innerText
-		text += `\n ${qty} ${name}` // Format [ ] wymusza checkboxy w Keep
+
+		// Dodajemy nową linię tylko przed kolejnymi produktami (żeby na samym początku nie było pustego wiersza)
+		const lineBreak = index === 0 ? '' : '\n'
+		text += `${lineBreak}${qty} ${name}`
 	})
 
-	try {
-		// Kopiowanie do schowka
-		await navigator.clipboard.writeText(text)
+	const btn = document.querySelector('.btn-share')
+	const originalText = btn.innerText
 
-		// Wyświetlamy subtelną informację (zamiast uciążliwego alertu)
-		const btn = document.querySelector('.btn-share')
-		const originalText = btn.innerText
-		btn.innerText = '✅ SKOPIOWANO!'
-		btn.style.backgroundColor = '#2ecc71'
+	// 2. Sprawdzamy, czy to urządzenie mobilne (telefon/tablet)
+	const isMobile = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile/i.test(navigator.userAgent)
 
-		// Otwieramy Google Keep (jeśli masz aplikację, system powinien ją wywołać)
-		window.open('https://keep.google.com/', '_blank')
+	// 3. Jeśli to Mobile ORAZ wspiera navigator.share
+	if (isMobile && navigator.share) {
+		try {
+			await navigator.share({
+				title: 'Lista Zakupów',
+				text: text,
+			})
+		} catch (err) {
+			console.log('Anulowano lub błąd udostępniania:', err)
+		}
+	}
+	// 4. Dla komputerów (nawet jeśli wspierają share) lub gdy share zawiedzie
+	else {
+		try {
+			// Kopiowanie do schowka
+			await navigator.clipboard.writeText(text)
 
-		// Przywracamy wygląd przycisku po 2 sekundach
-		setTimeout(() => {
-			btn.innerText = originalText
-			btn.style.backgroundColor = ''
-		}, 2000)
-	} catch (err) {
-		alert('Nie udało się skopiować listy. Spróbuj użyć przycisku "Pobierz .TXT"')
+			// Wizualna zmiana przycisku
+			btn.innerText = '✅ SKOPIOWANO!'
+			btn.style.backgroundColor = '#2ecc71'
+
+			// Otwieramy Google Keep w nowej karcie
+			window.open('https://keep.google.com/', '_blank')
+
+			// Reset przycisku
+			setTimeout(() => {
+				btn.innerText = originalText
+				btn.style.backgroundColor = ''
+			}, 2000)
+		} catch (err) {
+			alert('Wystąpił błąd podczas kopiowania. Spróbuj ręcznie.')
+		}
 	}
 }
 
