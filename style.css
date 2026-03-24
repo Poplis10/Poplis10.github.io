@@ -975,6 +975,7 @@ body.dark-mode {
 	body.print-jadlospis h2,
 	body.print-jadlospis #mealsDatabase,
 	body.print-jadlospis .add-btn,
+	body.print-jadlospis .info-btn,
 	body.print-jadlospis .delete-btn,
 	body.print-jadlospis .table-after {
 		display: none !important;
