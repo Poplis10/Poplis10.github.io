@@ -97,6 +97,8 @@ window.onclick = e => {
 	if (e.target === picker) closeMealPicker()
 	const mealModal = document.getElementById('meal-modal')
 	if (e.target === mealModal) closeModalBnt()
+	const infoModal = document.getElementById('infoModal')
+	if (e.target == infoModal) closeInfoModal()
 }
 
 // --- FUNKCJE ZAPISU ---
@@ -278,10 +280,37 @@ function fillTableCell(cell, name, ingredients) {
 
 	cell.innerHTML = `
         <div class="meal-container" data-ingredients="${ingredients.replace(/"/g, '&quot;')}">
+		 <button class="info-btn table-btn" onclick="showMealInfo(this)" title="Pokaż składniki">i</button>
             <button class="delete-btn table-btn" onclick="clearCell(this)">&times;</button>
             <div class="meal-name-text" style="font-size: 0.85em; font-weight: bold;">${name}</div>
         </div>
     `
+}
+
+function showMealInfo(btn) {
+	const container = btn.closest('.meal-container')
+	const name = container.querySelector('.meal-name-text').innerText
+	const ingredients = container.getAttribute('data-ingredients')
+
+	const modal = document.getElementById('infoModal')
+	const title = document.getElementById('infoModalTitle')
+	const content = document.getElementById('infoModalContent')
+
+	title.innerText = name
+
+	// Formułujemy listę składników z kropek
+	const ingredientsList = ingredients
+		.split(',')
+		.map(item => `• ${item.trim()}`)
+		.join('<br>')
+
+	content.innerHTML = `<div style="text-align: left; padding: 10px;">${ingredientsList}</div>`
+
+	modal.style.display = 'flex'
+}
+
+function closeInfoModal() {
+	document.getElementById('infoModal').style.display = 'none'
 }
 
 function setEmptyCell(cell) {
@@ -323,9 +352,28 @@ function editMeal(card) {
 }
 
 function deleteMeal(card) {
-	if (confirm('Usunąć z bazy?')) {
+	const mealName = card.querySelector('.card-title')?.innerText
+
+	if (confirm(`Czy na pewno usunąć "${mealName}" z bazy? Zostanie ono również usunięte z aktualnego jadłospisu.`)) {
+		// 1. Usuwamy kartę z widoku bazy
 		card.remove()
+
+		// 2. Szukamy tego posiłku w tabeli jadłospisu i go usuwamy
+		const allPlannedMeals = document.querySelectorAll('.meal-container')
+		allPlannedMeals.forEach(container => {
+			const plannedName = container.querySelector('.meal-name-text')?.innerText
+
+			if (plannedName === mealName) {
+				const cell = container.closest('td')
+				if (cell) {
+					setEmptyCell(cell) // Używamy Twojej funkcji do resetowania komórki
+				}
+			}
+		})
+
+		// 3. Zapisujemy zmiany w obu magazynach danych
 		saveDatabaseToLocalStorage()
+		saveTableToLocalStorage() // Zakładam, że tak nazywa się Twoja funkcja zapisu tabeli
 	}
 }
 
@@ -526,6 +574,20 @@ generateListBtn.onclick = () => {
 
 	shoppingSection.style.display = 'block'
 	shoppingSection.scrollIntoView({ behavior: 'smooth' })
+}
+
+// Znajdujemy nowy przycisk
+const refreshListBtn = document.getElementById('refreshListBtn')
+
+// Przypisujemy mu tę samą funkcję, którą ma główny przycisk generowania
+if (refreshListBtn) {
+	refreshListBtn.onclick = () => {
+		// Wywołujemy istniejącą logikę generowania (tę z alertem i sumowaniem)
+		generateListBtn.click()
+
+		// Opcjonalnie: mała informacja w konsoli lub wizualna, że odświeżono
+		console.log('Lista zakupów została zaktualizowana!')
+	}
 }
 
 // Funkcje drukowania i pobierania (zostały bez zmian, są poprawne)

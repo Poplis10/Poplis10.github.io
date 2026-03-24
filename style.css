@@ -1,3 +1,9 @@
+* {
+	padding: 0;
+	margin: 0;
+	box-sizing: border-box;
+}
+
 body {
 	font-family: 'Segoe UI', sans-serif;
 	background-color: #f0f2f5;
@@ -49,6 +55,7 @@ h1 {
 	margin-bottom: 30px;
 	border-bottom: 3px solid #4caf50;
 	padding-bottom: 10px;
+	margin: 50px;
 }
 
 h2 {
@@ -209,6 +216,21 @@ td:first-child {
 	transform: scale(1.02);
 }
 
+.info-btn {
+	position: absolute;
+	top: 3px;
+	left: 3px;
+	background-color: #3498db; /* Ładny niebieski */
+	font-style: italic;
+	font-family: serif;
+	font-weight: bold;
+}
+
+.info-btn:hover {
+	background-color: #2980b9;
+	transform: scale(1.1);
+}
+
 .add-btn {
 	background-color: #2ecc71;
 }
@@ -312,6 +334,10 @@ button:active {
 	transition: all 0.3s ease;
 	margin-left: 20px; /* Odstęp od napisu */
 	padding: 0;
+}
+
+.refresh-list-btn span {
+	font-size: 20px; /* Dopasowanie wielkości ikony do przycisku 32px */
 }
 
 .refresh-list-btn:hover {
@@ -779,18 +805,6 @@ body.dark-mode {
 	color: #bbb;
 }
 
-/* Opcjonalnie: na bardzo małych ekranach (telefony) przesuwamy go nieco, by nie zasłaniał treści */
-@media (max-width: 600px) {
-	.theme-switch-wrapper {
-		top: 10px;
-		right: 10px;
-	}
-	#theme-toggle {
-		padding: 8px 12px;
-		font-size: 12px;
-	}
-}
-
 /* --- DOPASOWANIE DO TRYBU CIEMNEGO --- */
 .dark-mode ::-webkit-scrollbar-track {
 	background: #2d2d2d;
@@ -988,6 +1002,18 @@ body.dark-mode {
 
 	body.print-jadlospis td:not(:first-child) {
 		padding: 16px !important;
+	}
+}
+
+/* Opcjonalnie: na bardzo małych ekranach (telefony) przesuwamy go nieco, by nie zasłaniał treści */
+@media (max-width: 600px) {
+	.theme-switch-wrapper {
+		top: 10px;
+		right: 10px;
+	}
+	#theme-toggle {
+		padding: 8px 12px;
+		font-size: 12px;
 	}
 }
 
