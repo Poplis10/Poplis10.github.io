@@ -1,4 +1,4 @@
-const CACHE_NAME = 'jadlospis-v4' // Zmień numer wersji!
+const CACHE_NAME = 'jadlospis-v5' // Zmień numer wersji!
 const ASSETS = ['index.html', 'style.css', 'script.js', 'manifest.json']
 
 // Instalacja

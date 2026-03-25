@@ -4,18 +4,24 @@ if ('serviceWorker' in navigator) {
 
 // --- KONFIGURACJA FIREBASE ---
 const firebaseConfig = {
-	apiKey: 'AIzaSyCe6bXIewm9_lc0vVK-FXdZ5ZU7XgUJ4mg',
-	authDomain: 'mojjadlospis-5e12c.firebaseapp.com',
-	databaseURL: 'https://mojjadlospis-5e12c-default-rtdb.europe-west1.firebasedatabase.app/', // Użyj dokładnie tego linku
-	projectId: 'mojjadlospis-5e12c',
-	storageBucket: 'mojjadlospis-5e12c.firebasestorage.app',
-	messagingSenderId: '13216014951',
-	appId: '1:13216014951:web:e57fa69e4fdba5f936eac2',
-}
+    apiKey: "AIzaSyBRVtplChkbGQsT10SvQXnYywLYKRVIY3E",
+    authDomain: "jadlospis-bee5a.firebaseapp.com",
+    // Upewnij się, że ten link zgadza się z tym, co widzisz w zakładce Realtime Database!
+    databaseURL: "https://jadlospis-bee5a-default-rtdb.europe-west1.firebasedatabase.app/", 
+    projectId: "jadlospis-bee5a",
+    storageBucket: "jadlospis-bee5a.firebasestorage.app",
+    messagingSenderId: "934978468199",
+    appId: "1:934978468199:web:354a6cb971784796b497c2"
+};
 
-// Inicjalizacja Firebase
-firebase.initializeApp(firebaseConfig)
-const db = firebase.database()
+// Inicjalizacja (Styl Compat - pasuje do reszty Twojego kodu)
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// Test połączenia w konsoli (F12)
+db.ref('.info/connected').on('value', snap => {
+    console.log(snap.val() === true ? "✅ Połączono z bazą Firebase" : "❌ Brak połączenia");
+});
 
 // --- NASŁUCHIWANIE ZMIAN (Synchronizacja na żywo) ---
 
