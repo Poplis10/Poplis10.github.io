@@ -40,18 +40,24 @@ db.ref('weeklyPlan').on('value', snapshot => {
 })
 
 // 2. ODBIERANIE BAZY DAŃ (TWOICH PRZEPISÓW)
+// Nasłuchiwanie zmian w bazie dań
 db.ref('mealDatabase').on('value', snapshot => {
 	const data = snapshot.val() || []
-	globalMealDatabase = data // <--- DODAJ TĘ LINIĘ
-	// Czyścimy kontenery przed ponownym wczytaniem, żeby nie dublować dań
+
+	// 1. Czyścimy wszystkie akordeony, żeby załadować świeże dane
 	document.querySelectorAll('.category-content').forEach(c => (c.innerHTML = ''))
 
+	// 2. Dodajemy każde danie z Firebase do odpowiedniego akordeonu
 	data.forEach(meal => {
 		if (meal && meal.category) {
-			// Tworzymy kartę dania (Argument 'false' mówi: nie zapisuj tego ponownie do DB, bo właśnie stamtąd to pobraliśmy)
+			// Używamy Twojej funkcji createNewMealCard
+			// CZWARTY ARGUMENT MUSI BYĆ 'false', żeby nie zapętlić zapisu!
 			createNewMealCard(meal.category, meal.name, meal.ingredients, false)
 		}
 	})
+
+	// 3. Aktualizujemy też naszą zmienną globalną dla wyszukiwarki (Meal Picker)
+	globalMealDatabase = data
 })
 
 // --- KONFIGURACJA I STATE ---
@@ -170,7 +176,7 @@ function saveDatabaseToLocalStorage() {
 			ingredients: card.getAttribute('data-ingredients'),
 		})
 	})
-	// Zapis do Chmury
+	// To wysyła listę wszystkich Twoich dań do Firebase
 	db.ref('mealDatabase').set(mealsData)
 }
 
