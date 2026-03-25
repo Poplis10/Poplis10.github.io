@@ -48,39 +48,46 @@ db.ref('weeklyPlan').on('value', snapshot => {
 // 2. ODBIERANIE BAZY DAŃ (TWOICH PRZEPISÓW)
 db.ref('mealDatabase').on('value', snapshot => {
 	const data = snapshot.val() || []
+	globalMealDatabase = data
 
-	// ... (Twoja obecna logika czyszczenia akordeonów i renderowania kart) ...
+	// 1. Odświeżanie akordeonów (Twoja obecna logika)
 	document.querySelectorAll('.category-content').forEach(c => (c.innerHTML = ''))
 	data.forEach(meal => {
 		if (meal && meal.category) {
 			createNewMealCard(meal.category, meal.name, meal.ingredients, meal.recipe, false)
 		}
 	})
-	globalMealDatabase = data
 
-	// --- NOWA LOGIKA: AKTUALIZACJA JADŁOSPISU ---
-	// Szukamy wszystkich zaplanowanych posiłków w tabeli
+	// 2. MASOWA AKTUALIZACJA JADŁOSPISU (Sync na wszystkie urządzenia)
+	// Pobieramy aktualny plan z tabeli na ekranie
+	let hasChanges = false
 	const allPlannedMeals = document.querySelectorAll('.meal-container')
 
 	allPlannedMeals.forEach(container => {
 		const mealNameInTable = container.querySelector('.meal-name-text').innerText
 
-		// Szukamy czy to danie istnieje w nowej, zaktualizowanej bazie
+		// Szukamy tego dania w nowej bazie po nazwie
 		const updatedMeal = data.find(m => m.name === mealNameInTable)
 
 		if (updatedMeal) {
-			// Jeśli znaleźliśmy dopasowanie, aktualizujemy atrybuty w tabeli
-			const safeIng = (updatedMeal.ingredients || '').replace(/"/g, '&quot;')
-			const safeRec = (updatedMeal.recipe || '').replace(/"/g, '&quot;')
+			const currentIng = container.getAttribute('data-ingredients')
+			const currentRec = container.getAttribute('data-recipe')
 
-			container.setAttribute('data-ingredients', safeIng)
-			container.setAttribute('data-recipe', safeRec)
-
-			// Opcjonalnie: log w konsoli, żebyś widział, że się dzieje "magia"
-			console.log(`Zaktualizowano dane dla: ${mealNameInTable}`)
+			// Sprawdzamy, czy dane faktycznie się różnią, żeby nie zapętlić zapisu
+			if (currentIng !== updatedMeal.ingredients || currentRec !== updatedMeal.recipe) {
+				container.setAttribute('data-ingredients', updatedMeal.ingredients || '')
+				container.setAttribute('data-recipe', updatedMeal.recipe || '')
+				hasChanges = true
+			}
 		}
 	})
-	// --------------------------------------------
+
+	// Jeśli wykryto różnice, zapisujemy zaktualizowaną tabelę do Firebase
+	// Dzięki temu inne urządzenia pobiorą nową wersję w swojej funkcji .on('value')
+	if (hasChanges) {
+		console.log('Wykryto zmiany w bazie dań - aktualizuję jadłospis w chmurze...')
+		saveTableToLocalStorage()
+	}
 })
 
 // --- KONFIGURACJA I STATE ---
@@ -382,8 +389,10 @@ function fillTableCell(cell, name, ingredients, recipe = '') {
 function showMealInfo(btn) {
 	const container = btn.closest('.meal-container')
 	const name = container.querySelector('.meal-name-text').innerText
-	const ingredients = container.getAttribute('data-ingredients')
-	const recipe = container.getAttribute('data-recipe')
+
+	// Kluczowe: pobieramy ZAWSZE najświeższe atrybuty z kontenera
+	const ingredients = container.getAttribute('data-ingredients') || ''
+	const recipe = container.getAttribute('data-recipe') || ''
 
 	const modal = document.getElementById('infoModal')
 	const title = document.getElementById('infoModalTitle')
@@ -391,20 +400,15 @@ function showMealInfo(btn) {
 
 	title.innerText = name
 
-	// Formułujemy listę składników z kropek
 	const ingredientsList = ingredients
 		.split(',')
 		.filter(item => item.trim() !== '')
 		.map(item => `• ${item.trim()}`)
 		.join('<br>')
 
-	// Budujemy HTML: najpierw składniki, potem przepis (jeśli jest)
 	let modalHTML = `<div style="text-align: left; padding: 10px;">`
-
 	modalHTML += `<div style="margin-bottom: 15px;"><strong>Składniki:</strong><br>${ingredientsList || 'Brak składników'}</div>`
-
-	modalHTML += `<div><strong>Przepis:</strong><br><div style="white-space: pre-wrap; margin-top: 5px; font-size: 0.9em;">${recipe}</div></div>`
-
+	modalHTML += `<div><strong>Przepis:</strong><br><div style="white-space: pre-wrap; margin-top: 5px; font-size: 0.9em;">${recipe || 'Brak przepisu'}</div></div>`
 	modalHTML += `</div>`
 
 	content.innerHTML = modalHTML
