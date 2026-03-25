@@ -6,7 +6,7 @@ if ('serviceWorker' in navigator) {
 const firebaseConfig = {
 	apiKey: 'AIzaSyCe6bXIewm9_lc0vVK-FXdZ5ZU7XgUJ4mg',
 	authDomain: 'mojjadlospis-5e12c.firebaseapp.com',
-	databaseURL: 'https://mojjadlospis-5e12c-default-rtdb.firebaseio.com/', // Użyj dokładnie tego linku
+	databaseURL: 'https://mojjadlospis-5e12c-default-rtdb.europe-west1.firebasedatabase.app/', // Użyj dokładnie tego linku
 	projectId: 'mojjadlospis-5e12c',
 	storageBucket: 'mojjadlospis-5e12c.firebasestorage.app',
 	messagingSenderId: '13216014951',
