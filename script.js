@@ -216,7 +216,11 @@ mealForm.onsubmit = e => {
 function createNewMealCard(category, name, ingredients, shouldSave) {
 	const safeCat = category.replace('ą', 'a') // db-przekąska -> db-przekaska
 	const accordion = document.getElementById(`db-${safeCat}`)
-	if (!accordion) return
+
+	if (!accordion) {
+        console.error("Nie znaleziono akordeonu dla kategorii:", safeCat);
+        return;
+    }
 
 	const targetSection = accordion.querySelector('.category-content')
 	const mealCard = document.createElement('div')
