@@ -69,26 +69,6 @@ let editingCard = null
 
 document.addEventListener('DOMContentLoaded', () => {
 	initTheme()
-	// 1. Wczytaj bazę posiłków
-	const savedDatabase = JSON.parse(localStorage.getItem('myMealDatabase')) || []
-	savedDatabase.forEach(meal => {
-		if (meal && meal.category) {
-			// Ujednolicenie kategorii przekąska (bez 'ą' w ID dla bezpieczeństwa)
-			const safeCat = meal.category.replace('ą', 'a')
-			createNewMealCard(safeCat, meal.name, meal.ingredients, false)
-		}
-	})
-
-	// 2. Wczytaj jadłospis (tabelę)
-	const savedTable = JSON.parse(localStorage.getItem('myWeeklyPlan')) || {}
-	document.querySelectorAll('td[id]').forEach(cell => {
-		if (savedTable[cell.id]) {
-			const data = savedTable[cell.id]
-			fillTableCell(cell, data.name, data.ingredients)
-		} else {
-			setEmptyCell(cell)
-		}
-	})
 
 	// 1. Rozgrzewanie animacji przy najechaniu myszką (Hover)
 	document.querySelectorAll('.category-accordion').forEach(acc => {
