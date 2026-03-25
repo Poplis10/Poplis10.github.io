@@ -2,6 +2,52 @@ if ('serviceWorker' in navigator) {
 	navigator.serviceWorker.register('sw.js')
 }
 
+// --- KONFIGURACJA FIREBASE ---
+const firebaseConfig = {
+	apiKey: 'AIzaSyCe6bXIewm9_lc0vVK-FXdZ5ZU7XgUJ4mg',
+	authDomain: 'mojjadlospis-5e12c.firebaseapp.com',
+	// Pamiętaj o dodaniu / na końcu lub upewnieniu się, że URL jest poprawny w konsoli Firebase
+	databaseURL: 'https://mojjadlospis-5e12c-default-rtdb.europe-west1.firebasedatabase.app',
+	projectId: 'mojjadlospis-5e12c',
+	storageBucket: 'mojjadlospis-5e12c.firebasestorage.app',
+	messagingSenderId: '13216014951',
+	appId: '1:13216014951:web:e57fa69e4fdba5f936eac2',
+}
+
+// Inicjalizacja Firebase
+firebase.initializeApp(firebaseConfig)
+const db = firebase.database()
+
+// --- NASŁUCHIWANIE ZMIAN (Synchronizacja na żywo) ---
+
+// 1. Synchronizacja Jadłospisu (Tabeli)
+db.ref('weeklyPlan').on('value', snapshot => {
+	const data = snapshot.val() || {}
+	document.querySelectorAll('td[id]').forEach(cell => {
+		if (data[cell.id]) {
+			fillTableCell(cell, data[cell.id].name, data[cell.id].ingredients)
+		} else {
+			// Zapobiega zapętleniu, wywołujemy tylko renderowanie
+			cell.style.position = 'relative'
+			cell.innerHTML = `<button class="add-btn table-btn" onclick="openMealPicker(this)">+</button>`
+		}
+	})
+})
+
+// 2. Synchronizacja Bazy Posiłków (Akordeonów)
+db.ref('mealDatabase').on('value', snapshot => {
+	const data = snapshot.val() || []
+	// Czyścimy kontenery przed ponownym wczytaniem
+	document.querySelectorAll('.category-content').forEach(content => (content.innerHTML = ''))
+
+	data.forEach(meal => {
+		if (meal && meal.category) {
+			const safeCat = meal.category.replace('ą', 'a')
+			createNewMealCard(meal.category, meal.name, meal.ingredients, false) // false = nie zapisuj ponownie do DB
+		}
+	})
+})
+
 // --- KONFIGURACJA I STATE ---
 const modal = document.getElementById('modalOverlay')
 const openBtn = document.getElementById('openFormBtn')
@@ -112,16 +158,14 @@ function saveDatabaseToLocalStorage() {
 	const allCards = document.querySelectorAll('.meal-card')
 	const mealsData = []
 	allCards.forEach(card => {
-		const cat = card.getAttribute('data-category')
-		if (cat && cat !== 'null') {
-			mealsData.push({
-				category: cat,
-				name: card.getAttribute('data-name') || 'Bez nazwy',
-				ingredients: card.getAttribute('data-ingredients') || '',
-			})
-		}
+		mealsData.push({
+			category: card.getAttribute('data-category'),
+			name: card.getAttribute('data-name'),
+			ingredients: card.getAttribute('data-ingredients'),
+		})
 	})
-	localStorage.setItem('myMealDatabase', JSON.stringify(mealsData))
+	// Zapis do Chmury
+	db.ref('mealDatabase').set(mealsData)
 }
 
 function saveTableToLocalStorage() {
@@ -135,7 +179,8 @@ function saveTableToLocalStorage() {
 			}
 		}
 	})
-	localStorage.setItem('myWeeklyPlan', JSON.stringify(tableData))
+	// Zapis do Chmury
+	db.ref('weeklyPlan').set(tableData)
 }
 
 // --- LOGIKA BAZY POSIŁKÓW ---

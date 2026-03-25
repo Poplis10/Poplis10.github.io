@@ -1,4 +1,4 @@
-const CACHE_NAME = 'jadlospis-v1'
+const CACHE_NAME = 'jadlospis-v1.1'
 const ASSETS = ['index.html', 'style.css', 'script.js']
 
 // Instalacja i cachowanie plików
