@@ -16,12 +16,57 @@ body {
 		color 0.3s ease;
 }
 
-/* Kontener przycisku - przypięty do prawego górnego rogu */
-.theme-switch-wrapper {
+/* Przycisk Koła Zębatego */
+#settings-toggle {
 	position: fixed;
 	top: 20px;
 	right: 20px;
-	z-index: 1000; /* Gwarantuje, że przycisk będzie zawsze na wierzchu */
+	z-index: 1001;
+	background: #34495e;
+	color: white;
+	border: none;
+	width: 40px;
+	height: 40px;
+	border-radius: 50%;
+	cursor: pointer;
+	font-size: 24px;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+	padding: 0 0 2px 0;
+}
+
+/* Panel Menu */
+#settings-menu {
+	position: fixed;
+	top: 75px;
+	right: 20px;
+	background: white;
+	border-radius: 15px;
+	box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+	display: none;
+	flex-direction: column;
+	padding: 20px;
+	z-index: 1000;
+	width: 240px;
+	border: 1px solid #ddd;
+	align-items: center;
+}
+
+/* Nagłówek w menu */
+#settings-menu h3 {
+	margin: 0 0 15px 0;
+	font-size: 1.1em;
+	color: #2c3e50;
+}
+
+/* Kontener na Twój przycisk motywu, żeby był wyśrodkowany */
+.menu-item-wrapper {
+	margin-bottom: 15px;
+	width: 100%;
+	display: flex;
+	justify-content: center;
 }
 
 #theme-toggle {
@@ -37,16 +82,43 @@ body {
 	transition: all 0.3s ease;
 }
 
-/* Styl w trybie ciemnym */
-.dark-mode #theme-toggle {
-	background-color: #f0f2f5;
-	color: #1a1a1a;
-	border-color: #4caf50;
-	box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
-}
-
 #theme-toggle:hover {
 	transform: scale(1.02); /* Delikatne powiększenie przy najechaniu */
+}
+
+/* Pozostałe przyciski menu */
+.menu-btn {
+	width: 100%;
+	padding: 12px;
+	margin: 5px 0;
+	border: none;
+	border-radius: 8px;
+	cursor: pointer;
+	background: #f8f9fa;
+	color: #333;
+	font-weight: bold;
+	text-align: left;
+}
+
+.logout-special {
+	background: #e74c3c !important;
+	color: white !important;
+	text-align: center;
+}
+
+hr {
+	width: 100%;
+	border: 0;
+	border-top: 1px solid #eee;
+	margin: 10px 0;
+}
+
+/* Kontener przycisku - przypięty do prawego górnego rogu */
+.theme-switch-wrapper {
+	position: fixed;
+	top: 20px;
+	right: 20px;
+	z-index: 1000; /* Gwarantuje, że przycisk będzie zawsze na wierzchu */
 }
 
 h1 {
@@ -666,7 +738,8 @@ input {
 	font-family: inherit;
 }
 
-#ingredientsInput {
+#ingredientsInput,
+#recipeInput {
 	min-height: 70px;
 	resize: vertical;
 }
@@ -753,6 +826,33 @@ button {
 body.dark-mode {
 	background-color: #1a1a1a;
 	color: #e0e0e0;
+}
+
+/* Styl przycisku motywu w trybie ciemnym */
+.dark-mode #theme-toggle {
+	background-color: #f0f2f5;
+	color: #1a1a1a;
+	border-color: #4caf50;
+	box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+}
+
+/* Adaptacja Menu do Dark Mode */
+.dark-mode #settings-menu {
+	background: #1a1a1a;
+	border-color: #444;
+}
+
+.dark-mode #settings-menu h3 {
+	color: white;
+}
+
+.dark-mode .menu-btn {
+	background: #2c3e50;
+	color: white;
+}
+
+.dark-mode hr {
+	border-top: 1px solid #444;
 }
 
 .dark-mode h1 {

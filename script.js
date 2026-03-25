@@ -30,7 +30,7 @@ db.ref('weeklyPlan').on('value', snapshot => {
 	document.querySelectorAll('td[id]').forEach(cell => {
 		if (data[cell.id]) {
 			// Wypełnij komórkę danymi z Firebase
-			fillTableCell(cell, data[cell.id].name, data[cell.id].ingredients)
+			fillTableCell(cell, data[cell.id].name, data[cell.id].ingredients, data[cell.id].recipe)
 		} else {
 			// Jeśli w chmurze pusto, ustaw przycisk "+"
 			cell.innerHTML = `<button class="add-btn table-btn" onclick="openMealPicker(this)">+</button>`
@@ -52,7 +52,7 @@ db.ref('mealDatabase').on('value', snapshot => {
 		if (meal && meal.category) {
 			// Używamy Twojej funkcji createNewMealCard
 			// CZWARTY ARGUMENT MUSI BYĆ 'false', żeby nie zapętlić zapisu!
-			createNewMealCard(meal.category, meal.name, meal.ingredients, false)
+			createNewMealCard(meal.category, meal.name, meal.ingredients, meal.recipe, false)
 		}
 	})
 
@@ -68,6 +68,8 @@ const mealForm = document.getElementById('mealForm')
 let editingCard = null
 
 document.addEventListener('DOMContentLoaded', () => {
+	const isAuth = localStorage.getItem('isAppAuthorized') === 'true'
+	updateAuthUI(isAuth)
 	initTheme()
 
 	// 1. Rozgrzewanie animacji przy najechaniu myszką (Hover)
@@ -154,6 +156,7 @@ function saveDatabaseToLocalStorage() {
 			category: card.getAttribute('data-category'),
 			name: card.getAttribute('data-name'),
 			ingredients: card.getAttribute('data-ingredients'),
+			recipe: card.getAttribute('data-recipe'),
 		})
 	})
 	// To wysyła listę wszystkich Twoich dań do Firebase
@@ -168,10 +171,10 @@ function saveTableToLocalStorage() {
 			tableData[cell.id] = {
 				name: mealDiv.querySelector('.meal-name-text').innerText,
 				ingredients: mealDiv.getAttribute('data-ingredients'),
+				recipe: mealDiv.getAttribute('data-recipe'), // Upewnij się, że to tu jest!
 			}
 		}
 	})
-	// Zapis do Chmury
 	db.ref('weeklyPlan').set(tableData)
 }
 
@@ -182,19 +185,22 @@ mealForm.onsubmit = e => {
 	const category = document.getElementById('modal-category-select').value
 	const name = document.getElementById('mealNameInput').value
 	const ingredients = document.getElementById('ingredientsInput').value
+	const recipe = document.getElementById('recipeInput').value // Pobieramy przepis
 
 	if (editingCard) {
-		updateMealCard(editingCard, category, name, ingredients)
+		// Dodajemy przepis jako 5-ty argument
+		updateMealCard(editingCard, category, name, ingredients, recipe)
 	} else {
-		createNewMealCard(category, name, ingredients, true)
+		// Dodajemy przepis jako 4-ty argument
+		createNewMealCard(category, name, ingredients, recipe, true)
 	}
 
 	saveDatabaseToLocalStorage()
 	closeModal()
 }
 
-function createNewMealCard(category, name, ingredients, shouldSave) {
-	const safeCat = category.replace('ą', 'a') // db-przekąska -> db-przekaska
+function createNewMealCard(category, name, ingredients, recipe, shouldSave) {
+	const safeCat = category.replace('ą', 'a')
 	const accordion = document.getElementById(`db-${safeCat}`)
 
 	if (!accordion) {
@@ -206,19 +212,22 @@ function createNewMealCard(category, name, ingredients, shouldSave) {
 	const mealCard = document.createElement('div')
 	mealCard.className = 'meal-card'
 
-	updateMealCard(mealCard, category, name, ingredients)
+	// Przekazujemy przepis dalej
+	updateMealCard(mealCard, category, name, ingredients, recipe)
 	targetSection.appendChild(mealCard)
 
 	if (shouldSave) saveDatabaseToLocalStorage()
 }
 
-function updateMealCard(card, category, name, ingredients) {
+function updateMealCard(card, category, name, ingredients, recipe) {
 	const safeName = (name || 'Bez nazwy').toString()
 	const safeIngredients = (ingredients || '').toString()
+	const safeRecipe = (recipe || '').toString() // Zabezpieczenie przepisu
 
 	card.setAttribute('data-name', safeName)
 	card.setAttribute('data-ingredients', safeIngredients)
 	card.setAttribute('data-category', category)
+	card.setAttribute('data-recipe', safeRecipe) // Zapisujemy przepis w atrybucie karty
 
 	card.innerHTML = `
         <div class="meal-info-container">
@@ -228,16 +237,29 @@ function updateMealCard(card, category, name, ingredients) {
         </div>
         
         <div class="card-actions">
-          <button onclick="openMealModal('${safeName.replace(/'/g, "\\'")}', '${safeIngredients.replace(/'/g, "\\'")}')">
-            Dodaj +
-        </button>
+
+<button onclick="openMealModal('${safeName.replace(/'/g, "\\'")}', '${safeIngredients.replace(/'/g, "\\'")}', '${safeRecipe.replace(/'/g, "\\'")}')">
+    Dodaj +
+</button>
             <button class="btn-preview" onclick="togglePreview(this)">Podgląd</button>
             <button onclick="editMeal(this.parentElement.parentElement)" style="background: #f39c12;">Edytuj</button>
             <button onclick="deleteMeal(this.parentElement.parentElement)" style="background: #e74c3c;">Usuń</button>
         </div>
 
         <div class="ingredients-preview">
-            <small style="line-height: 1.4;">${safeIngredients}</small>
+            <div class="preview-section">
+                <strong>Składniki:</strong><br>
+                <small style="line-height: 1.4;">${safeIngredients}</small>
+            </div>
+            ${
+							safeRecipe
+								? `
+            <div class="preview-section" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee;">
+                <strong>Przepis:</strong><br>
+                <small style="line-height: 1.4; white-space: pre-wrap;">${safeRecipe}</small>
+            </div>`
+								: ''
+						}
         </div>
     `
 
@@ -255,18 +277,18 @@ function updateMealCard(card, category, name, ingredients) {
 // Zmienne pomocnicze do przechowywania danych aktualnie wybranego posiłku
 let currentMealData = null // Tu ląduje danie "w zawieszeniu"
 
-function openMealModal(name, ingredients) {
-	// 1. Zapamiętujemy, co kliknęliśmy
+function openMealModal(name, ingredients, recipe) {
+	// Dodano recipe
+	// Zapamiętujemy komplet danych, w tym przepis
 	currentMealData = {
 		name: name,
 		ingredients: ingredients,
+		recipe: recipe || '', // Zabezpieczenie przed brakiem danych
 	}
 
-	// 2. Opcjonalnie: wpisz nazwę dania do nagłówka modala, żebyś wiedział co dodajesz
 	const modalTitle = document.querySelector('#meal-modal h3')
 	if (modalTitle) modalTitle.innerText = `Dodaj: ${name}`
 
-	// 3. Pokaż modal
 	document.getElementById('meal-modal').style.display = 'flex'
 }
 
@@ -281,14 +303,10 @@ function handleModalSave(event) {
 	if (!currentMealData) return
 
 	const dayIndex = parseInt(daySelect.value)
-	const selectedCategory = categorySelect.value // Pobiera aktualnie wybraną opcję
-
-	// Szukamy wiersza w tabeli
+	const selectedCategory = categorySelect.value
 	const row = document.querySelector(`#mealTable tr[data-category="${selectedCategory}"]`)
 
 	if (!row) {
-		console.error('Błąd: Nie znaleziono wiersza dla:', selectedCategory)
-		alert('Błąd: Tabela nie posiada kategorii: ' + selectedCategory)
 		return
 	}
 
@@ -304,7 +322,9 @@ function handleModalSave(event) {
 	}
 
 	if (cell) {
-		fillTableCell(cell, currentMealData.name, currentMealData.ingredients)
+		// KLUCZOWE: Dodajemy currentMealData.recipe jako 4-ty argument
+		fillTableCell(cell, currentMealData.name, currentMealData.ingredients, currentMealData.recipe)
+
 		if (typeof saveTableToLocalStorage === 'function') saveTableToLocalStorage()
 		closeModalBnt()
 	}
@@ -318,17 +338,20 @@ function closeModalBnt() {
 	currentMealData = null // Czyści dane "w pamięci"
 }
 
-function fillTableCell(cell, name, ingredients) {
+function fillTableCell(cell, name, ingredients, recipe = '') {
 	cell.style.position = 'relative'
 	cell.style.verticalAlign = 'center'
-	// Dodajemy padding, żeby tekst nie nachodził na przycisk usuwania
 	cell.style.padding = '23px 5px 5px 5px'
 
+	// Zabezpieczamy tekst przed cudzysłowami
+	const safeIng = ingredients.replace(/"/g, '&quot;')
+	const safeRec = recipe.replace(/"/g, '&quot;')
+
 	cell.innerHTML = `
-        <div class="meal-container" data-ingredients="${ingredients.replace(/"/g, '&quot;')}">
-		 <button class="info-btn table-btn" onclick="showMealInfo(this)" title="Pokaż składniki">i</button>
+        <div class="meal-container" data-ingredients="${safeIng}" data-recipe="${safeRec}">
+            <button class="info-btn table-btn" onclick="showMealInfo(this)">i</button>
             <button class="delete-btn table-btn" onclick="clearCell(this)">&times;</button>
-            <div class="meal-name-text" style="font-size: 0.85em; font-weight: bold;">${name}</div>
+            <div class="meal-name-text">${name}</div>
         </div>
     `
 }
@@ -337,6 +360,7 @@ function showMealInfo(btn) {
 	const container = btn.closest('.meal-container')
 	const name = container.querySelector('.meal-name-text').innerText
 	const ingredients = container.getAttribute('data-ingredients')
+	const recipe = container.getAttribute('data-recipe')
 
 	const modal = document.getElementById('infoModal')
 	const title = document.getElementById('infoModalTitle')
@@ -347,11 +371,20 @@ function showMealInfo(btn) {
 	// Formułujemy listę składników z kropek
 	const ingredientsList = ingredients
 		.split(',')
+		.filter(item => item.trim() !== '')
 		.map(item => `• ${item.trim()}`)
 		.join('<br>')
 
-	content.innerHTML = `<div style="text-align: left; padding: 10px;">${ingredientsList}</div>`
+	// Budujemy HTML: najpierw składniki, potem przepis (jeśli jest)
+	let modalHTML = `<div style="text-align: left; padding: 10px;">`
 
+	modalHTML += `<div style="margin-bottom: 15px;"><strong>Składniki:</strong><br>${ingredientsList || 'Brak składników'}</div>`
+
+	modalHTML += `<div><strong>Przepis:</strong><br><div style="white-space: pre-wrap; margin-top: 5px; font-size: 0.9em;">${recipe}</div></div>`
+
+	modalHTML += `</div>`
+
+	content.innerHTML = modalHTML
 	modal.style.display = 'flex'
 }
 
@@ -394,7 +427,10 @@ function editMeal(card) {
 	document.getElementById('modal-category-select').value = card.getAttribute('data-category')
 	document.getElementById('mealNameInput').value = card.getAttribute('data-name')
 	document.getElementById('ingredientsInput').value = card.getAttribute('data-ingredients')
-	modal.style.display = 'flex'
+	// DODAJ TO:
+	document.getElementById('recipeInput').value = card.getAttribute('data-recipe')
+
+	document.getElementById('modalOverlay').style.display = 'flex'
 }
 
 function deleteMeal(card) {
@@ -532,13 +568,14 @@ function openMealPicker(btn) {
 
 		filtered.forEach(meal => {
 			const item = document.createElement('div')
+			const mealRecipe = meal.recipe || ''
 			item.className = 'meal-picker-item'
 			item.innerHTML = `
                 <span><strong>${meal.name}</strong></span>
                 <small style="background:#eee; padding:2px 6px; border-radius:4px; font-size:10px;">${meal.category}</small>
             `
 			item.onclick = () => {
-				fillTableCell(currentTargetCell, meal.name, meal.ingredients)
+				fillTableCell(currentTargetCell, meal.name, meal.ingredients, mealRecipe)
 				saveTableToLocalStorage()
 				closeMealPicker()
 			}
@@ -845,28 +882,73 @@ document.querySelectorAll('.category-accordion summary').forEach(summary => {
 	})
 })
 
-const CORRECT_PASSWORD = 'Piotruś' // <--- TUTAJ WPISZ SWOJE HASŁO
+const CORRECT_PASSWORD = 'lol'
 
 function checkAppPassword() {
 	const input = document.getElementById('app-password-input').value
 	const errorMsg = document.getElementById('error-msg')
-	const overlay = document.getElementById('auth-overlay')
 
 	if (input === CORRECT_PASSWORD) {
-		// Hasło poprawne - chowamy blokadę i zapamiętujemy w sesji
-		overlay.style.display = 'none'
-		sessionStorage.setItem('isAuthorized', 'true')
+		localStorage.setItem('isAppAuthorized', 'true')
+		updateAuthUI(true) // Natychmiastowa aktualizacja interfejsu
 	} else {
-		// Błędne hasło
 		errorMsg.style.display = 'block'
 		document.getElementById('app-password-input').value = ''
-		alert('Błędne hasło!')
 	}
 }
 
-// Sprawdzaj przy każdym odświeżeniu, czy użytkownik jest już zalogowany
-document.addEventListener('DOMContentLoaded', () => {
-	if (sessionStorage.getItem('isAuthorized') === 'true') {
-		document.getElementById('auth-overlay').style.display = 'none'
+function logout() {
+	if (confirm('Czy na pewno chcesz wylogować i zablokować stronę?')) {
+		localStorage.removeItem('isAppAuthorized')
+		updateAuthUI(false) // Natychmiastowa blokada bez czekania na przeładowanie
+	}
+}
+
+// Funkcja, która steruje wszystkim na raz
+function updateAuthUI(isAuthorized) {
+	const overlay = document.getElementById('auth-overlay')
+	const logoutBtn = document.getElementById('logout-btn')
+
+	if (isAuthorized) {
+		if (overlay) overlay.style.display = 'none'
+		if (logoutBtn) logoutBtn.style.display = 'inline-block'
+	} else {
+		if (overlay) {
+			// TUTAJ MUSI BYĆ 'flex', żeby środek działał!
+			overlay.style.display = 'flex'
+			document.getElementById('app-password-input').value = ''
+		}
+		if (logoutBtn) logoutBtn.style.display = 'none'
+	}
+}
+
+function toggleSettingsMenu() {
+	const menu = document.getElementById('settings-menu')
+	const isVisible = menu.style.display === 'flex'
+	menu.style.display = isVisible ? 'none' : 'flex'
+}
+
+// Zamykanie menu, gdy klikniesz gdzieś indziej na stronie
+window.addEventListener('click', e => {
+	const menu = document.getElementById('settings-menu')
+	const toggleBtn = document.getElementById('settings-toggle')
+
+	if (!menu.contains(e.target) && e.target !== toggleBtn) {
+		menu.style.display = 'none'
 	}
 })
+
+// Zmodyfikuj funkcję updateAuthUI, aby ukrywała też koło zębate przed zalogowaniem
+function updateAuthUI(isAuthorized) {
+	const overlay = document.getElementById('auth-overlay')
+	const settingsToggle = document.getElementById('settings-toggle')
+
+	if (isAuthorized) {
+		if (overlay) overlay.style.display = 'none'
+		if (settingsToggle) settingsToggle.style.display = 'flex'
+	} else {
+		if (overlay) overlay.style.display = 'flex'
+		if (settingsToggle) settingsToggle.style.display = 'none'
+		document.getElementById('settings-menu').style.display = 'none'
+	}
+}

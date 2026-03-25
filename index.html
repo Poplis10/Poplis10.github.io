@@ -12,10 +12,6 @@
 
 <body>
 
-    <div class="theme-switch-wrapper">
-        <button id="theme-toggle" onclick="toggleTheme()">🌙 Tryb Ciemny</button>
-    </div>
-
     <h1>JADŁOSPIS</h1>
 
     <div class="container">
@@ -77,9 +73,6 @@
             <button id="printJadlospisBtn" onclick="printJadlospis()">DRUKUJ JADŁOSPIS</button>
             <button id="generateListBtn">STWÓRZ LISTĘ ZAKUPÓW</button>
             <button id="openFormBtn">DODAJ POSIŁEK DO BAZY</button>
-            <button id="exportDbBtn" onclick="exportDatabase()">EKSPORTUJ BAZĘ
-                (.JSON)</button>
-            <button id="importDbBtn" onclick="triggerImport()">IMPORTUJ BAZĘ</button>
             <input type="file" id="importInput" style="display: none;" accept=".json" onchange="importDatabase(event)">
         </div>
 
@@ -172,7 +165,11 @@
                     <input type="text" id="mealNameInput" placeholder="np. Shakshuka" required>
 
                     <label>Składniki:</label>
-                    <textarea id="ingredientsInput" rows="2" placeholder="Składniki..." required></textarea>
+                    <textarea id="ingredientsInput" rows="2" placeholder="Składniki (oddziel przecinkami)..."
+                        required></textarea>
+
+                    <label>Przepis / Sposób przygotowania:</label>
+                    <textarea id="recipeInput" rows="2" placeholder="Opisz jak przygotować danie..." required></textarea>
 
                     <div class="modal-buttons">
                         <button type="button" id="cancelBtn" class="btn-secondary">Anuluj</button>
@@ -228,24 +225,85 @@
 
         <div id="auth-overlay" style="
     position: fixed; 
-    top: 0; left: 0; width: 100%; height: 100%; 
+    top: 0; left: 0; 
+    width: 100%; height: 100%; 
     background: #2c3e50; 
-    display: flex; flex-direction: column; 
-    justify-content: center; align-items: center; 
-    z-index: 10000; color: white; font-family: sans-serif;">
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    z-index: 10000;">
 
-            <div
-                style="background: white; padding: 30px; border-radius: 15px; text-align: center; color: #333; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
-                <h2 style="margin-top: 0;">🔒 Dostęp Zablokowany</h2>
-                <p>Wprowadź hasło rodzinne:</p>
-                <input type="password" id="app-password-input"
-                    style="padding: 12px; width: 200px; border: 2px solid #ddd; border-radius: 8px; margin-bottom: 15px; text-align: center; font-size: 1.2em;">
-                <br>
-                <button onclick="checkAppPassword()"
-                    style="background: #27ae60; color: white; border: none; padding: 12px 30px; border-radius: 8px; cursor: pointer; font-weight: bold;">Wejdź</button>
-                <p id="error-msg" style="color: #e74c3c; font-size: 0.9em; margin-top: 10px; display: none;">Błędne
-                    hasło!</p>
+            <div style="
+        background: white; 
+        padding: 40px; 
+        border-radius: 20px; 
+        text-align: center; 
+        color: #333; 
+        box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+        width: 90%;
+        max-width: 350px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;">
+
+                <h2 style="margin: 0 0 20px 0; font-family: sans-serif;">🔒 Dostęp Zablokowany</h2>
+
+                <form onsubmit="event.preventDefault(); checkAppPassword();"
+                    style="width: 100%; display: flex; flex-direction: column; align-items: center;">
+                    <p style="margin-bottom: 15px; font-family: sans-serif;">Wprowadź hasło rodzinne:</p>
+
+                    <input type="password" id="app-password-input" style="
+                    padding: 15px; 
+                    width: 100%; 
+                    max-width: 250px; 
+                    border: 2px solid #ddd; 
+                    border-radius: 10px; 
+                    margin-bottom: 20px; 
+                    text-align: center; 
+                    font-size: 1.2em;
+                    box-sizing: border-box;" placeholder="Hasło...">
+
+                    <button type="submit" style="
+                background: #27ae60; 
+                color: white; 
+                border: none; 
+                padding: 15px 40px; 
+                border-radius: 10px; 
+                cursor: pointer; 
+                font-weight: bold; 
+                width: 100%;
+                max-width: 200px;
+                font-size: 1em;
+                transition: background 0.3s;">
+                        Wejdź
+                    </button>
+                </form>
+
+                <p id="error-msg"
+                    style="color: #e74c3c; font-size: 0.9em; margin-top: 15px; display: none; font-weight: bold; font-family: sans-serif;">
+                    ❌ Błędne hasło!
+                </p>
             </div>
+        </div>
+
+        <button id="settings-toggle" onclick="toggleSettingsMenu()">⚙️</button>
+
+        <div id="settings-menu">
+            <h3>Ustawienia</h3>
+
+            <div class="menu-item-wrapper">
+                <button id="theme-toggle" onclick="toggleTheme()">🌙 Tryb Ciemny</button>
+            </div>
+
+            <hr>
+
+            <button onclick="exportDatabase()" class="menu-btn">📤 Eksportuj Bazę (.JSON)</button>
+            <button onclick="triggerImport()" class="menu-btn">📥 Importuj Bazę</button>
+
+            <hr>
+
+            <button onclick="logout()" class="menu-btn logout-special">🔒 Wyloguj</button>
         </div>
 
         <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
