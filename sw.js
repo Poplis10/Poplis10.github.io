@@ -1,12 +1,21 @@
-const CACHE_NAME = 'jadlospis-v1.1'
-const ASSETS = ['index.html', 'style.css', 'script.js']
+const CACHE_NAME = 'jadlospis-v3' // Zmień numer wersji!
+const ASSETS = ['index.html', 'style.css', 'script.js', 'manifest.json']
 
-// Instalacja i cachowanie plików
+// Instalacja
 self.addEventListener('install', e => {
 	e.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS)))
 })
 
-// Serwowanie plików z cache, gdy nie ma sieci
+// Obsługa zapytań
 self.addEventListener('fetch', e => {
-	e.respondWith(caches.match(e.request).then(res => res || fetch(e.request)))
+	// Jeśli zapytanie dotyczy Firebase, pozwól mu lecieć prosto do sieci
+	if (e.request.url.includes('firebaseio.com') || e.request.url.includes('gstatic.com')) {
+		return fetch(e.request)
+	}
+
+	e.respondWith(
+		caches.match(e.request).then(res => {
+			return res || fetch(e.request)
+		}),
+	)
 })
