@@ -45,23 +45,42 @@ db.ref('weeklyPlan').on('value', snapshot => {
 
 // 2. ODBIERANIE BAZY DAŃ (TWOICH PRZEPISÓW)
 // Nasłuchiwanie zmian w bazie dań
+// 2. ODBIERANIE BAZY DAŃ (TWOICH PRZEPISÓW)
 db.ref('mealDatabase').on('value', snapshot => {
 	const data = snapshot.val() || []
 
-	// 1. Czyścimy wszystkie akordeony, żeby załadować świeże dane
+	// ... (Twoja obecna logika czyszczenia akordeonów i renderowania kart) ...
 	document.querySelectorAll('.category-content').forEach(c => (c.innerHTML = ''))
-
-	// 2. Dodajemy każde danie z Firebase do odpowiedniego akordeonu
 	data.forEach(meal => {
 		if (meal && meal.category) {
-			// Używamy Twojej funkcji createNewMealCard
-			// CZWARTY ARGUMENT MUSI BYĆ 'false', żeby nie zapętlić zapisu!
 			createNewMealCard(meal.category, meal.name, meal.ingredients, meal.recipe, false)
 		}
 	})
-
-	// 3. Aktualizujemy też naszą zmienną globalną dla wyszukiwarki (Meal Picker)
 	globalMealDatabase = data
+
+	// --- NOWA LOGIKA: AKTUALIZACJA JADŁOSPISU ---
+	// Szukamy wszystkich zaplanowanych posiłków w tabeli
+	const allPlannedMeals = document.querySelectorAll('.meal-container')
+
+	allPlannedMeals.forEach(container => {
+		const mealNameInTable = container.querySelector('.meal-name-text').innerText
+
+		// Szukamy czy to danie istnieje w nowej, zaktualizowanej bazie
+		const updatedMeal = data.find(m => m.name === mealNameInTable)
+
+		if (updatedMeal) {
+			// Jeśli znaleźliśmy dopasowanie, aktualizujemy atrybuty w tabeli
+			const safeIng = (updatedMeal.ingredients || '').replace(/"/g, '&quot;')
+			const safeRec = (updatedMeal.recipe || '').replace(/"/g, '&quot;')
+
+			container.setAttribute('data-ingredients', safeIng)
+			container.setAttribute('data-recipe', safeRec)
+
+			// Opcjonalnie: log w konsoli, żebyś widział, że się dzieje "magia"
+			console.log(`Zaktualizowano dane dla: ${mealNameInTable}`)
+		}
+	})
+	// --------------------------------------------
 })
 
 // --- KONFIGURACJA I STATE ---
