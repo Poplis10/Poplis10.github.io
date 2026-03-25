@@ -226,6 +226,28 @@
             </div>
         </div>
 
+        <div id="auth-overlay" style="
+    position: fixed; 
+    top: 0; left: 0; width: 100%; height: 100%; 
+    background: #2c3e50; 
+    display: flex; flex-direction: column; 
+    justify-content: center; align-items: center; 
+    z-index: 10000; color: white; font-family: sans-serif;">
+
+            <div
+                style="background: white; padding: 30px; border-radius: 15px; text-align: center; color: #333; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
+                <h2 style="margin-top: 0;">🔒 Dostęp Zablokowany</h2>
+                <p>Wprowadź hasło rodzinne:</p>
+                <input type="password" id="app-password-input"
+                    style="padding: 12px; width: 200px; border: 2px solid #ddd; border-radius: 8px; margin-bottom: 15px; text-align: center; font-size: 1.2em;">
+                <br>
+                <button onclick="checkAppPassword()"
+                    style="background: #27ae60; color: white; border: none; padding: 12px 30px; border-radius: 8px; cursor: pointer; font-weight: bold;">Wejdź</button>
+                <p id="error-msg" style="color: #e74c3c; font-size: 0.9em; margin-top: 10px; display: none;">Błędne
+                    hasło!</p>
+            </div>
+        </div>
+
         <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
         <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 

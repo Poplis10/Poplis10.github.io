@@ -844,3 +844,29 @@ document.querySelectorAll('.category-accordion summary').forEach(summary => {
 		}
 	})
 })
+
+const CORRECT_PASSWORD = 'Piotruś' // <--- TUTAJ WPISZ SWOJE HASŁO
+
+function checkAppPassword() {
+	const input = document.getElementById('app-password-input').value
+	const errorMsg = document.getElementById('error-msg')
+	const overlay = document.getElementById('auth-overlay')
+
+	if (input === CORRECT_PASSWORD) {
+		// Hasło poprawne - chowamy blokadę i zapamiętujemy w sesji
+		overlay.style.display = 'none'
+		sessionStorage.setItem('isAuthorized', 'true')
+	} else {
+		// Błędne hasło
+		errorMsg.style.display = 'block'
+		document.getElementById('app-password-input').value = ''
+		alert('Błędne hasło!')
+	}
+}
+
+// Sprawdzaj przy każdym odświeżeniu, czy użytkownik jest już zalogowany
+document.addEventListener('DOMContentLoaded', () => {
+	if (sessionStorage.getItem('isAuthorized') === 'true') {
+		document.getElementById('auth-overlay').style.display = 'none'
+	}
+})
