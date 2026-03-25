@@ -29,12 +29,16 @@ db.ref('weeklyPlan').on('value', snapshot => {
 	const data = snapshot.val() || {}
 	document.querySelectorAll('td[id]').forEach(cell => {
 		if (data[cell.id]) {
-			// Wypełnij komórkę danymi z Firebase
-			fillTableCell(cell, data[cell.id].name, data[cell.id].ingredients, data[cell.id].recipe)
+			// TUTAJ BYŁ BŁĄD: Musisz przekazać 4 argumenty (cell, name, ingredients, recipe)
+			fillTableCell(
+				cell,
+				data[cell.id].name,
+				data[cell.id].ingredients,
+				data[cell.id].recipe || '', // Dodajemy przepis z bazy!
+			)
 		} else {
-			// Jeśli w chmurze pusto, ustaw przycisk "+"
 			cell.innerHTML = `<button class="add-btn table-btn" onclick="openMealPicker(this)">+</button>`
-			cell.style.padding = '5px' // Reset paddingu
+			cell.style.padding = '5px'
 		}
 	})
 })
@@ -575,6 +579,7 @@ function openMealPicker(btn) {
                 <small style="background:#eee; padding:2px 6px; border-radius:4px; font-size:10px;">${meal.category}</small>
             `
 			item.onclick = () => {
+				const mealRecipe = meal.recipe || '' // Pobieramy przepis z obiektu meal
 				fillTableCell(currentTargetCell, meal.name, meal.ingredients, mealRecipe)
 				saveTableToLocalStorage()
 				closeMealPicker()
