@@ -1,3 +1,7 @@
+if ('serviceWorker' in navigator) {
+	navigator.serviceWorker.register('sw.js')
+}
+
 // --- KONFIGURACJA I STATE ---
 const modal = document.getElementById('modalOverlay')
 const openBtn = document.getElementById('openFormBtn')
@@ -6,6 +10,7 @@ const mealForm = document.getElementById('mealForm')
 let editingCard = null
 
 document.addEventListener('DOMContentLoaded', () => {
+	initTheme()
 	// 1. Wczytaj bazę posiłków
 	const savedDatabase = JSON.parse(localStorage.getItem('myMealDatabase')) || []
 	savedDatabase.forEach(meal => {

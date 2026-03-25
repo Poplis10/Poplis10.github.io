@@ -1,0 +1,17 @@
+{
+	"name": "Mój Jadłospis i Zakupy",
+	"short_name": "Jadłospis",
+	"start_url": "index.html",
+	"display": "standalone",
+	"background_color": "#f0f2f5",
+	"theme_color": "#4caf50",
+	"description": "Planer posiłków z automatyczną listą zakupów.",
+	"icons": [
+		{
+			"src": "https://cdn-icons-png.flaticon.com/512/1046/1046747.png",
+			"sizes": "512x512",
+			"type": "image/png",
+			"purpose": "any maskable"
+		}
+	]
+}
