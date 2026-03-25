@@ -198,9 +198,9 @@ function createNewMealCard(category, name, ingredients, shouldSave) {
 	const accordion = document.getElementById(`db-${safeCat}`)
 
 	if (!accordion) {
-        console.error("Nie znaleziono akordeonu dla kategorii:", safeCat);
-        return;
-    }
+		console.error('Nie znaleziono akordeonu dla kategorii:', safeCat)
+		return
+	}
 
 	const targetSection = accordion.querySelector('.category-content')
 	const mealCard = document.createElement('div')
@@ -689,20 +689,21 @@ function closeShoppingList() {
 
 // 1. Funkcja Eksportu
 function exportDatabase() {
-	const savedDatabase = JSON.parse(localStorage.getItem('myMealDatabase')) || []
+	// Pobieramy dane z chmury (zmiennej globalnej), nie z localStorage
+	const dataToExport = globalMealDatabase
 
-	if (savedDatabase.length === 0) {
-		alert('Twoja baza jest pusta. Nie ma czego eksportować!')
+	if (!dataToExport || dataToExport.length === 0) {
+		alert('Twoja baza w chmurze jest pusta. Nie ma czego eksportować!')
 		return
 	}
 
-	const dataStr = JSON.stringify(savedDatabase, null, 2)
+	const dataStr = JSON.stringify(dataToExport, null, 2)
 	const blob = new Blob([dataStr], { type: 'application/json' })
 	const url = URL.createObjectURL(blob)
 
 	const link = document.createElement('a')
 	link.href = url
-	link.download = `Moja_Baza_Posilkow_${new Date().toISOString().slice(0, 10)}.json`
+	link.download = `Baza_Posilkow_Firebase_${new Date().toISOString().slice(0, 10)}.json`
 	link.click()
 
 	URL.revokeObjectURL(url)
@@ -719,27 +720,29 @@ function importDatabase(event) {
 	if (!file) return
 
 	const reader = new FileReader()
-	reader.onload = function (e) {
+	reader.onload = async function (e) {
 		try {
 			const importedData = JSON.parse(e.target.result)
 
 			if (!Array.isArray(importedData)) {
-				throw new Error('Nieprawidłowy format pliku.')
+				throw new Error('Nieprawidłowy format pliku. Oczekiwano tablicy [].')
 			}
 
-			const currentDb = JSON.parse(localStorage.getItem('myMealDatabase')) || []
+			// Pobieramy aktualny stan z naszej zmiennej globalnej (która ma dane z Firebase)
+			const currentDb = globalMealDatabase || []
 
-			// FILTR: Szukamy dań, których nazwa (małymi literami) nie istnieje jeszcze w bazie
+			// FILTR DUPLIKATÓW: Sprawdzamy po nazwie (trim i małe litery)
 			const existingNames = new Set(currentDb.map(m => m.name.toLowerCase().trim()))
 
 			const newMeals = importedData.filter(m => {
+				if (!m.name) return false
 				const isDuplicate = existingNames.has(m.name.toLowerCase().trim())
 				return !isDuplicate
 			})
 
 			if (newMeals.length === 0) {
-				alert('Wszystkie dania z pliku znajdują się już w Twojej bazie!')
-				event.target.value = '' // Reset inputu
+				alert('Wszystkie dania z pliku znajdują się już w Twojej bazie Firebase!')
+				event.target.value = ''
 				return
 			}
 
@@ -747,18 +750,23 @@ function importDatabase(event) {
 				`Znaleziono ${importedData.length} posiłków.\n` +
 				`- Nowe do dodania: ${newMeals.length}\n` +
 				`- Pominięte duplikaty: ${importedData.length - newMeals.length}\n\n` +
-				`Czy chcesz kontynuować?`
+				`Czy chcesz wysłać te dane do CHMURY (Firebase)?`
 
 			if (confirm(message)) {
 				const finalDb = [...currentDb, ...newMeals]
-				localStorage.setItem('myMealDatabase', JSON.stringify(finalDb))
-				alert('Import zakończony! Baza została zaktualizowana.')
-				location.reload()
+
+				// --- KLUCZOWA ZMIANA: Zapisujemy do Firebase zamiast LocalStorage ---
+				await db.ref('mealDatabase').set(finalDb)
+
+				alert('Import zakończony sukcesem! Dane są już w chmurze.')
+				// location.reload() nie jest już potrzebne, bo Firebase .on('value')
+				// samo odświeży listę na ekranie w ułamku sekundy!
 			}
 		} catch (err) {
 			alert('Błąd podczas importu: ' + err.message)
+			console.error(err)
 		}
-		event.target.value = '' // Reset inputu po zakończeniu
+		event.target.value = ''
 	}
 	reader.readAsText(file)
 }
