@@ -4,51 +4,52 @@ if ('serviceWorker' in navigator) {
 
 // --- KONFIGURACJA FIREBASE ---
 const firebaseConfig = {
-    apiKey: "AIzaSyBRVtplChkbGQsT10SvQXnYywLYKRVIY3E",
-    authDomain: "jadlospis-bee5a.firebaseapp.com",
-    // Upewnij się, że ten link zgadza się z tym, co widzisz w zakładce Realtime Database!
-    databaseURL: "https://jadlospis-bee5a-default-rtdb.europe-west1.firebasedatabase.app/", 
-    projectId: "jadlospis-bee5a",
-    storageBucket: "jadlospis-bee5a.firebasestorage.app",
-    messagingSenderId: "934978468199",
-    appId: "1:934978468199:web:354a6cb971784796b497c2"
-};
+	apiKey: 'AIzaSyBRVtplChkbGQsT10SvQXnYywLYKRVIY3E',
+	authDomain: 'jadlospis-bee5a.firebaseapp.com',
+	// Upewnij się, że ten link zgadza się z tym, co widzisz w zakładce Realtime Database!
+	databaseURL: 'https://jadlospis-bee5a-default-rtdb.europe-west1.firebasedatabase.app/',
+	projectId: 'jadlospis-bee5a',
+	storageBucket: 'jadlospis-bee5a.firebasestorage.app',
+	messagingSenderId: '934978468199',
+	appId: '1:934978468199:web:354a6cb971784796b497c2',
+}
 
 // Inicjalizacja (Styl Compat - pasuje do reszty Twojego kodu)
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+firebase.initializeApp(firebaseConfig)
+const db = firebase.database()
+let globalMealDatabase = [] // Tutaj będziemy trzymać dania z chmury
 
 // Test połączenia w konsoli (F12)
 db.ref('.info/connected').on('value', snap => {
-    console.log(snap.val() === true ? "✅ Połączono z bazą Firebase" : "❌ Brak połączenia");
-});
+	console.log(snap.val() === true ? '✅ Połączono z bazą Firebase' : '❌ Brak połączenia')
+})
 
-// --- NASŁUCHIWANIE ZMIAN (Synchronizacja na żywo) ---
-
-// 1. Synchronizacja Jadłospisu (Tabeli)
+// 1. ODBIERANIE TABELI (PLANU TYGODNIA)
 db.ref('weeklyPlan').on('value', snapshot => {
 	const data = snapshot.val() || {}
 	document.querySelectorAll('td[id]').forEach(cell => {
 		if (data[cell.id]) {
+			// Wypełnij komórkę danymi z Firebase
 			fillTableCell(cell, data[cell.id].name, data[cell.id].ingredients)
 		} else {
-			// Zapobiega zapętleniu, wywołujemy tylko renderowanie
-			cell.style.position = 'relative'
+			// Jeśli w chmurze pusto, ustaw przycisk "+"
 			cell.innerHTML = `<button class="add-btn table-btn" onclick="openMealPicker(this)">+</button>`
+			cell.style.padding = '5px' // Reset paddingu
 		}
 	})
 })
 
-// 2. Synchronizacja Bazy Posiłków (Akordeonów)
+// 2. ODBIERANIE BAZY DAŃ (TWOICH PRZEPISÓW)
 db.ref('mealDatabase').on('value', snapshot => {
 	const data = snapshot.val() || []
-	// Czyścimy kontenery przed ponownym wczytaniem
-	document.querySelectorAll('.category-content').forEach(content => (content.innerHTML = ''))
+	globalMealDatabase = data // <--- DODAJ TĘ LINIĘ
+	// Czyścimy kontenery przed ponownym wczytaniem, żeby nie dublować dań
+	document.querySelectorAll('.category-content').forEach(c => (c.innerHTML = ''))
 
 	data.forEach(meal => {
 		if (meal && meal.category) {
-			const safeCat = meal.category.replace('ą', 'a')
-			createNewMealCard(meal.category, meal.name, meal.ingredients, false) // false = nie zapisuj ponownie do DB
+			// Tworzymy kartę dania (Argument 'false' mówi: nie zapisuj tego ponownie do DB, bo właśnie stamtąd to pobraliśmy)
+			createNewMealCard(meal.category, meal.name, meal.ingredients, false)
 		}
 	})
 })
@@ -494,7 +495,7 @@ function openMealPicker(btn) {
 	const listContainer = document.getElementById('modalMealsList')
 	const searchInput = document.getElementById('modalSearchInput')
 
-	const savedDatabase = JSON.parse(localStorage.getItem('myMealDatabase')) || []
+	const savedDatabase = globalMealDatabase
 
 	// 1. Tworzymy pasek filtrów (jeśli jeszcze go nie ma)
 	let filterBar = document.getElementById('modalFilterBar')
