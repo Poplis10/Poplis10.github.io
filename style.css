@@ -229,7 +229,7 @@ th:first-child,
 td:first-child {
 	width: 62px;
 	padding: 16px 4px;
-	font-size: 0.8em;
+	font-size: 1em;
 }
 
 th:not(:first-child),
@@ -1042,6 +1042,7 @@ body.dark-mode {
 	body.print-lista .print-actions,
 	body.print-lista h2,
 	body.print-lista .planner-section-title,
+	body.print-lista #settings-toggle,
 	body.print-lista #mealsDatabase {
 		display: none !important;
 	}
@@ -1068,7 +1069,7 @@ body.dark-mode {
 		font-size: 16px !important;
 	}
 
-	body.print-jadlospis .theme-switch-wrapper,
+	body.print-jadlospis #settings-toggle,
 	body.print-jadlospis .actions,
 	body.print-jadlospis #shoppingListSection,
 	body.print-jadlospis .print-actions,
@@ -1086,7 +1087,7 @@ body.dark-mode {
 	}
 
 	body.print-jadlospis .table-wrapper {
-		width: 1194px !important;
+		width: 1200px !important;
 	}
 
 	body.print-jadlospis th,
