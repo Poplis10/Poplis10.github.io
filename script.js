@@ -44,48 +44,51 @@ db.ref('weeklyPlan').on('value', snapshot => {
 })
 
 // 2. ODBIERANIE BAZY DAŃ (TWOICH PRZEPISÓW)
-// Nasłuchiwanie zmian w bazie dań
-// 2. ODBIERANIE BAZY DAŃ (TWOICH PRZEPISÓW)
 db.ref('mealDatabase').on('value', snapshot => {
 	const data = snapshot.val() || []
 	globalMealDatabase = data
 
-	// 1. Odświeżanie akordeonów (Twoja obecna logika)
+	// 1. Czyszczenie i renderowanie bazy (akordeonów)
 	document.querySelectorAll('.category-content').forEach(c => (c.innerHTML = ''))
+
 	data.forEach(meal => {
 		if (meal && meal.category) {
+			// Przekazujemy shouldSave = false, żeby nie nadpisywać Firebase przy każdym posiłku
 			createNewMealCard(meal.category, meal.name, meal.ingredients, meal.recipe, false)
 		}
 	})
 
-	// 2. MASOWA AKTUALIZACJA JADŁOSPISU (Sync na wszystkie urządzenia)
-	// Pobieramy aktualny plan z tabeli na ekranie
-	let hasChanges = false
+	// 2. AKTUALIZACJA LICZNIKÓW (Bardzo ważne tutaj!)
+	updateAllCounts()
+
+	// 3. SYNCHRONIZACJA DANYCH W TABELI
+	let localTableUpdated = false
 	const allPlannedMeals = document.querySelectorAll('.meal-container')
 
 	allPlannedMeals.forEach(container => {
 		const mealNameInTable = container.querySelector('.meal-name-text').innerText
-
-		// Szukamy tego dania w nowej bazie po nazwie
 		const updatedMeal = data.find(m => m.name === mealNameInTable)
 
 		if (updatedMeal) {
 			const currentIng = container.getAttribute('data-ingredients')
 			const currentRec = container.getAttribute('data-recipe')
 
-			// Sprawdzamy, czy dane faktycznie się różnią, żeby nie zapętlić zapisu
-			if (currentIng !== updatedMeal.ingredients || currentRec !== updatedMeal.recipe) {
+			// Sprawdzamy różnice
+			if (currentIng !== (updatedMeal.ingredients || '') || currentRec !== (updatedMeal.recipe || '')) {
 				container.setAttribute('data-ingredients', updatedMeal.ingredients || '')
 				container.setAttribute('data-recipe', updatedMeal.recipe || '')
-				hasChanges = true
+				localTableUpdated = true
 			}
 		}
 	})
 
-	// Jeśli wykryto różnice, zapisujemy zaktualizowaną tabelę do Firebase
-	// Dzięki temu inne urządzenia pobiorą nową wersję w swojej funkcji .on('value')
-	if (hasChanges) {
-		console.log('Wykryto zmiany w bazie dań - aktualizuję jadłospis w chmurze...')
+	// 4. ZAPIS DO FIREBASE (Tylko jeśli faktycznie coś się zmieniło w danych)
+	if (localTableUpdated) {
+		console.log('Synchronizacja: Dane posiłku w tabeli zostały zaktualizowane na podstawie bazy.')
+
+		// UWAGA: Wywołaj zapis do Firebase TYLKO jeśli Twoja funkcja
+		// saveTableToLocalStorage ma wbudowane sprawdzanie różnic lub
+		// jeśli to absolutnie konieczne.
 		saveTableToLocalStorage()
 	}
 })
@@ -102,27 +105,24 @@ document.addEventListener('DOMContentLoaded', () => {
 	updateAuthUI(isAuth)
 	initTheme()
 
-	// 1. Rozgrzewanie animacji przy najechaniu myszką (Hover)
+	// 1. Rozgrzewanie animacji (Hover)
 	document.querySelectorAll('.category-accordion').forEach(acc => {
 		acc.addEventListener(
 			'mouseenter',
 			() => {
 				const wrapper = acc.querySelector('.category-wrapper')
-				// Odczytujemy wysokość, gdy użytkownik tylko najeżdża myszką
-				// To zmusza przeglądarkę do obliczeń ZANIM kliknie
 				const forceLayout = wrapper.scrollHeight
 			},
 			{ once: true },
-		) // Wykonaj tylko raz dla każdej kategorii
+		)
 	})
 
-	// 2. Całkowicie nowa obsługa otwierania (zastąp obsługę kliknięcia summary)
+	// 2. Obsługa otwierania/zamykania akordeonów
 	document.querySelectorAll('.category-accordion summary').forEach(summary => {
 		summary.addEventListener('click', e => {
-			const details = e.target.parentElement
+			const details = summary.parentElement // Lepiej użyć summary.parentElement
 			const wrapper = details.querySelector('.category-wrapper')
 
-			// Jeśli zamykamy (to już masz, ale upewnijmy się, że współgra)
 			if (details.open) {
 				e.preventDefault()
 				details.classList.add('closing')
@@ -131,13 +131,29 @@ document.addEventListener('DOMContentLoaded', () => {
 					details.classList.remove('closing')
 				}, 400)
 			} else {
-				// Jeśli OTWIERAMY:
-				// Wymuszamy przeliczenie wysokości kart posiłków przed otwarciem
 				const preCalculation = wrapper.scrollHeight
 			}
 		})
 	})
+
+	// Wywołanie przy starcie strony
+	updateAllCounts()
 })
+
+// --- WYCIĄGNIJ FUNKCJĘ TUTAJ (na zewnątrz) ---
+// Dzięki temu będzie dostępna dla Firebase i funkcji deleteMeal
+function updateAllCounts() {
+	const accordions = document.querySelectorAll('.category-accordion')
+
+	accordions.forEach(acc => {
+		const count = acc.querySelectorAll('.meal-card').length
+		const countSpan = acc.querySelector('.meal-count')
+
+		if (countSpan) {
+			countSpan.innerText = `(${count})`
+		}
+	})
+}
 
 // --- TRYB CIEMNY ---
 
@@ -247,6 +263,7 @@ function createNewMealCard(category, name, ingredients, recipe, shouldSave) {
 	targetSection.appendChild(mealCard)
 
 	if (shouldSave) saveDatabaseToLocalStorage()
+	updateAllCounts()
 }
 
 function updateMealCard(card, category, name, ingredients, recipe) {
@@ -299,6 +316,7 @@ function updateMealCard(card, category, name, ingredients, recipe) {
 	if (targetAccordion) {
 		const content = targetAccordion.querySelector('.category-content')
 		if (card.parentElement !== content) content.appendChild(card)
+		updateAllCounts()
 	}
 }
 
@@ -483,6 +501,7 @@ function deleteMeal(card) {
 		// 3. Zapisujemy zmiany w obu magazynach danych
 		saveDatabaseToLocalStorage()
 		saveTableToLocalStorage() // Zakładam, że tak nazywa się Twoja funkcja zapisu tabeli
+		updateAllCounts()
 	}
 }
 
@@ -490,45 +509,6 @@ function togglePreview(btn) {
 	const p = btn.closest('.meal-card').querySelector('.ingredients-preview')
 	p.classList.toggle('active')
 	btn.innerText = p.classList.contains('active') ? 'Ukryj' : 'Podgląd'
-}
-
-// --- GENEROWANIE LISTY ZAKUPÓW ---
-
-const generateListBtn = document.getElementById('generateListBtn')
-const shoppingContainer = document.getElementById('shoppingListContainer')
-const shoppingSection = document.getElementById('shoppingListSection')
-
-generateListBtn.onclick = () => {
-	const plannedMeals = document.querySelectorAll('td div[data-ingredients]')
-	const summary = {}
-	plannedMeals.forEach(meal => {
-		const items = meal
-			.getAttribute('data-ingredients')
-			.split(',')
-			.map(i => i.trim())
-		items.forEach(item => {
-			const match = item.match(/^(\d+[\.,]?\d*)\s*(.*)/)
-			if (match) {
-				let qty = parseFloat(match[1].replace(',', '.'))
-				let prod = match[2].trim().toLowerCase()
-				summary[prod] = (summary[prod] || 0) + qty
-			} else {
-				summary[item.toLowerCase()] = (summary[item.toLowerCase()] || 0) + 1
-			}
-		})
-	})
-
-	const sorted = Object.keys(summary).sort((a, b) => a.localeCompare(b, 'pl'))
-	shoppingContainer.innerHTML = ''
-	sorted.forEach(p => {
-		const amount = Math.round(summary[p] * 100) / 100
-		const lbl = document.createElement('label')
-		lbl.className = 'shopping-item'
-		lbl.innerHTML = `<input type="checkbox"> <strong>${amount}</strong> <span>${p}</span>`
-		shoppingContainer.appendChild(lbl)
-	})
-	shoppingSection.style.display = 'block'
-	shoppingSection.scrollIntoView({ behavior: 'smooth' })
 }
 
 let currentTargetCell = null // Zmienna pomocnicza, by wiedzieć gdzie dodać danie
@@ -637,87 +617,159 @@ function closeShoppingList() {
 	}
 }
 
-// --- LISTA ZAKUPÓW I DRUKOWANIE ---
+// --- GENEROWANIE LISTY ZAKUPÓW ---
 
-generateListBtn.onclick = () => {
-	const plannedMeals = document.querySelectorAll('td div[data-ingredients]')
-	const summary = {}
+document.addEventListener('DOMContentLoaded', () => {
+	const generateListBtn = document.getElementById('generateListBtn')
+	const shoppingContainer = document.getElementById('shoppingListContainer')
+	const shoppingSection = document.getElementById('shoppingListSection')
 
-	plannedMeals.forEach(meal => {
-		const ingredientsData = meal.getAttribute('data-ingredients')
-		if (!ingredientsData) return
-
-		const items = ingredientsData.split(',').map(i => i.trim())
-		items.forEach(item => {
-			const match = item.match(/^(\d+[\.,]?\d*)\s*(.*)/)
-			if (match) {
-				let qty = parseFloat(match[1].replace(',', '.'))
-				let prod = match[2].trim().toLowerCase()
-
-				// --- UNIFIKACJA NAZW (Zsumowanie różnych odmian) ---
-				if (prod.includes('kromk') && prod.includes('chleb')) {
-					prod = 'kromki chleba'
-				}
-				// ---------------------------------------------------
-
-				if (prod) {
-					summary[prod] = (summary[prod] || 0) + qty
-				}
-			} else if (item) {
-				let prod = item.trim().toLowerCase()
-
-				if (prod.includes('kromk') && prod.includes('chleb')) {
-					prod = 'kromki chleba'
-				}
-
-				summary[prod] = (summary[prod] || 0) + 1
-			}
-		})
-	})
-
-	const sorted = Object.keys(summary).sort((a, b) => a.localeCompare(b, 'pl'))
-
-	if (sorted.length === 0) {
-		alert('Twój jadłospis jest pusty! Dodaj posiłki do tabeli, aby wygenerować listę zakupów.')
-		shoppingSection.style.display = 'none'
-		return
+	// --- FUNKCJA ODMIANY ---
+	function getPolishForm(n, s1, s2, s3) {
+		if (n === 1) return s1
+		const n10 = n % 10
+		const n100 = n % 100
+		if (n10 >= 2 && n10 <= 4 && (n100 < 10 || n100 >= 20)) return s2
+		return s3
 	}
 
-	shoppingContainer.innerHTML = ''
-	sorted.forEach(p => {
-		let amount = Math.round(summary[p] * 100) / 100
-		let displayContent = ''
+	// --- PARSER ---
+	function parseIngredient(text) {
+		text = text.toLowerCase().trim()
+		const match = text.match(/^(\d+[\.,]?\d*)\s*(.*)/)
+		let qty = 1
+		let rest = text
 
-		// --- PRZELICZANIE NA BOCHENKI ---
-		if (p === 'kromki chleba') {
-			const loaves = Math.floor(amount / 20)
-			const remainingSlices = Math.round((amount % 20) * 100) / 100
-
-			if (loaves > 0) {
-				// Prosta odmiana słowa chleb
-				let loafWord = loaves === 1 ? 'chleb' : loaves < 5 ? 'chleby' : 'chlebów'
-
-				if (remainingSlices > 0) {
-					displayContent = `<strong>${loaves} ${loafWord}, ${remainingSlices}</strong> <span>kromki chleba</span>`
-				} else {
-					displayContent = `<strong>${loaves}</strong> <span>${loafWord}</span>`
-				}
-			} else {
-				displayContent = `<strong>${amount}</strong> <span>${p}</span>`
-			}
-		} else {
-			displayContent = `<strong>${amount}</strong> <span>${p}</span>`
+		if (match) {
+			qty = parseFloat(match[1].replace(',', '.'))
+			rest = match[2].trim()
 		}
 
-		const lbl = document.createElement('label')
-		lbl.className = 'shopping-item'
-		lbl.innerHTML = `<input type="checkbox"> ${displayContent}`
-		shoppingContainer.appendChild(lbl)
-	})
+		if (rest.includes('chleb') || rest.includes('kromk')) {
+			return { qty, isBread: true, name: 'chleb' }
+		}
+		return { qty, isBread: false, name: rest }
+	}
 
-	shoppingSection.style.display = 'block'
-	shoppingSection.scrollIntoView({ behavior: 'smooth' })
-}
+	// --- OBSŁUGA DRAG & DROP ---
+	let dragSrcEl = null
+
+	function handleDragStart(e) {
+		this.style.opacity = '0.4'
+		dragSrcEl = this
+		e.dataTransfer.effectAllowed = 'move'
+		e.dataTransfer.setData('text/html', this.innerHTML)
+	}
+
+	function handleDragOver(e) {
+		if (e.preventDefault) e.preventDefault()
+		return false
+	}
+
+	function handleDragEnter(e) {
+		this.classList.add('over')
+	}
+
+	function handleDragLeave(e) {
+		this.classList.remove('over')
+	}
+
+	function handleDrop(e) {
+		if (e.stopPropagation) e.stopPropagation()
+		if (dragSrcEl !== this) {
+			dragSrcEl.innerHTML = this.innerHTML
+			this.innerHTML = e.dataTransfer.getData('text/html')
+		}
+		return false
+	}
+
+	function handleDragEnd(e) {
+		this.style.opacity = '1'
+		const items = document.querySelectorAll('.shopping-item')
+		items.forEach(item => item.classList.remove('over'))
+	}
+
+	// --- GENEROWANIE LISTY ---
+	generateListBtn.onclick = () => {
+		const meals = document.querySelectorAll('.meal-container[data-ingredients]')
+		const summary = {}
+
+		meals.forEach(meal => {
+			let data = meal.getAttribute('data-ingredients')
+			if (!data) return
+			const items = data
+				.replace(/\r?\n/g, ',')
+				.split(',')
+				.map(i => i.trim())
+				.filter(Boolean)
+
+			items.forEach(item => {
+				const { qty, isBread, name } = parseIngredient(item)
+				const key = isBread ? 'BREAD_TOTAL' : name
+				summary[key] = (summary[key] || 0) + qty
+			})
+		})
+
+		const list = []
+		Object.keys(summary).forEach(key => {
+			let amount = Math.round(summary[key] * 100) / 100
+			let htmlContent = ''
+			let sortKey = '' // Dodajemy zmienną na klucz sortowania
+
+			if (key === 'BREAD_TOTAL') {
+				const totalSlices = Math.round(amount)
+				const loaves = Math.floor(totalSlices / 20)
+				const remainingSlices = totalSlices % 20
+
+				// Ustawiamy klucz sortowania na "chleb", żeby był pod literą C
+				sortKey = 'chleb'
+
+				if (loaves > 0) {
+					const loafWord = getPolishForm(loaves, 'chleb', 'chleby', 'chlebów')
+					htmlContent = `${loafWord} <strong>${loaves}</strong>`
+					if (remainingSlices > 0) {
+						htmlContent += ` + kromki <strong>${remainingSlices}</strong>`
+					}
+				} else {
+					htmlContent = `chleb (kromki) <strong>${remainingSlices}</strong>`
+				}
+			} else {
+				// Dla reszty produktów klucz to po prostu ich nazwa
+				sortKey = key
+				htmlContent = `${key} <strong>${amount}</strong>`
+			}
+
+			list.push({
+				label: htmlContent,
+				sortKey: sortKey, // Używamy poprawnego klucza do sortowania
+			})
+		})
+
+		// --- SORTOWANIE ALFABETYCZNE ---
+
+		shoppingContainer.innerHTML = ''
+		list.sort((a, b) => a.sortKey.localeCompare(b.sortKey, 'pl'))
+
+		list.forEach(item => {
+			const el = document.createElement('div') // Zmieniono na div dla lepszej stabilności Drag&Drop
+			el.className = 'shopping-item'
+			el.draggable = true // Kluczowy atrybut
+			el.innerHTML = `<input type="checkbox"> <span>${item.label}</span>`
+
+			// Podpięcie zdarzeń
+			el.addEventListener('dragstart', handleDragStart)
+			el.addEventListener('dragenter', handleDragEnter)
+			el.addEventListener('dragover', handleDragOver)
+			el.addEventListener('dragleave', handleDragLeave)
+			el.addEventListener('drop', handleDrop)
+			el.addEventListener('dragend', handleDragEnd)
+
+			shoppingContainer.appendChild(el)
+		})
+
+		shoppingSection.style.display = 'block'
+	}
+})
 
 // Znajdujemy nowy przycisk
 const refreshListBtn = document.getElementById('refreshListBtn')
@@ -854,6 +906,8 @@ function importDatabase(event) {
 
 				// --- KLUCZOWA ZMIANA: Zapisujemy do Firebase zamiast LocalStorage ---
 				await db.ref('mealDatabase').set(finalDb)
+
+				updateAllCounts()
 
 				alert('Import zakończony sukcesem! Dane są już w chmurze.')
 				// location.reload() nie jest już potrzebne, bo Firebase .on('value')
