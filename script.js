@@ -653,11 +653,23 @@ generateListBtn.onclick = () => {
 			if (match) {
 				let qty = parseFloat(match[1].replace(',', '.'))
 				let prod = match[2].trim().toLowerCase()
+
+				// --- UNIFIKACJA NAZW (Zsumowanie różnych odmian) ---
+				if (prod.includes('kromk') && prod.includes('chleb')) {
+					prod = 'kromki chleba'
+				}
+				// ---------------------------------------------------
+
 				if (prod) {
 					summary[prod] = (summary[prod] || 0) + qty
 				}
 			} else if (item) {
-				const prod = item.trim().toLowerCase()
+				let prod = item.trim().toLowerCase()
+
+				if (prod.includes('kromk') && prod.includes('chleb')) {
+					prod = 'kromki chleba'
+				}
+
 				summary[prod] = (summary[prod] || 0) + 1
 			}
 		})
@@ -665,21 +677,41 @@ generateListBtn.onclick = () => {
 
 	const sorted = Object.keys(summary).sort((a, b) => a.localeCompare(b, 'pl'))
 
-	// --- NOWA LOGIKA: Sprawdzanie czy lista jest pusta ---
 	if (sorted.length === 0) {
 		alert('Twój jadłospis jest pusty! Dodaj posiłki do tabeli, aby wygenerować listę zakupów.')
-		shoppingSection.style.display = 'none' // Ukrywamy sekcję, jeśli była widoczna
-		return // Przerywamy funkcję tutaj
+		shoppingSection.style.display = 'none'
+		return
 	}
-	// ----------------------------------------------------
 
 	shoppingContainer.innerHTML = ''
 	sorted.forEach(p => {
-		const amount = Math.round(summary[p] * 100) / 100
+		let amount = Math.round(summary[p] * 100) / 100
+		let displayContent = ''
+
+		// --- PRZELICZANIE NA BOCHENKI ---
+		if (p === 'kromki chleba') {
+			const loaves = Math.floor(amount / 20)
+			const remainingSlices = Math.round((amount % 20) * 100) / 100
+
+			if (loaves > 0) {
+				// Prosta odmiana słowa chleb
+				let loafWord = loaves === 1 ? 'chleb' : loaves < 5 ? 'chleby' : 'chlebów'
+
+				if (remainingSlices > 0) {
+					displayContent = `<strong>${loaves} ${loafWord}, ${remainingSlices}</strong> <span>kromki chleba</span>`
+				} else {
+					displayContent = `<strong>${loaves}</strong> <span>${loafWord}</span>`
+				}
+			} else {
+				displayContent = `<strong>${amount}</strong> <span>${p}</span>`
+			}
+		} else {
+			displayContent = `<strong>${amount}</strong> <span>${p}</span>`
+		}
+
 		const lbl = document.createElement('label')
 		lbl.className = 'shopping-item'
-		// Usunąłem style inline, aby CSS z Dark Mode mógł swobodnie działać
-		lbl.innerHTML = `<input type="checkbox"> <strong>${amount}</strong> <span>${p}</span>`
+		lbl.innerHTML = `<input type="checkbox"> ${displayContent}`
 		shoppingContainer.appendChild(lbl)
 	})
 
