@@ -35,8 +35,18 @@ body {
 	justify-content: center;
 	align-items: center;
 	box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-	padding: 0 0 3px 0;
+	padding: 0; /* Usuń ten padding! */
+	line-height: 0; /* Resetuje wysokość linii, która różni się między OS */
+	font-family: serif; /* Czasem pomaga ujednolicić bazę dla emoji */
 	transition: all 1s;
+}
+
+/* Dodaj to, aby upewnić się, że przycisk nie ma mobilnych "narzutów" */
+#settings-toggle {
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	appearance: none;
+	outline: none;
 }
 
 #settings-toggle:hover {
