@@ -1138,16 +1138,6 @@ body.dark-mode {
 }
 
 /* Opcjonalnie: na bardzo małych ekranach (telefony) przesuwamy go nieco, by nie zasłaniał treści */
-@media (max-width: 600px) {
-	.theme-switch-wrapper {
-		top: 10px;
-		right: 10px;
-	}
-	#theme-toggle {
-		padding: 8px 12px;
-		font-size: 12px;
-	}
-}
 
 @media screen and (min-width: 768px) {
 	.actions {
