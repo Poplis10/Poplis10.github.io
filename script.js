@@ -610,13 +610,6 @@ function closeMealPicker() {
 	document.getElementById('mealPickerModal').style.display = 'none'
 }
 
-function closeShoppingList() {
-	const shoppingSection = document.getElementById('shoppingListSection')
-	if (shoppingSection) {
-		shoppingSection.style.display = 'none'
-	}
-}
-
 // --- GENEROWANIE LISTY ZAKUPÓW ---
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -710,6 +703,12 @@ document.addEventListener('DOMContentLoaded', () => {
 			})
 		})
 
+		if (Object.keys(summary).length === 0) {
+			shoppingSection.style.display = 'none' // Ukryj sekcję, jeśli była widoczna
+			alert('Twoja lista jest pusta! Dodaj składniki do posiłków, aby wygenerować listę zakupów.')
+			return // Przerwij wykonywanie funkcji
+		}
+
 		const list = []
 		Object.keys(summary).forEach(key => {
 			let amount = Math.round(summary[key] * 100) / 100
@@ -785,6 +784,13 @@ if (refreshListBtn) {
 	}
 }
 
+function closeShoppingList() {
+	const shoppingSection = document.getElementById('shoppingListSection')
+	if (shoppingSection) {
+		shoppingSection.style.display = 'none'
+	}
+}
+
 // Funkcje drukowania i pobierania (zostały bez zmian, są poprawne)
 // 1. Drukowanie Jadłospisu (Poziomo)
 function printJadlospis() {
@@ -828,10 +834,6 @@ function downloadLista() {
 	link.href = URL.createObjectURL(blob)
 	link.download = 'Lista_Zakupow.txt'
 	link.click()
-}
-
-function closeShoppingList() {
-	shoppingSection.style.display = 'none'
 }
 
 // --- EKSPORT I IMPORT BAZY ---
