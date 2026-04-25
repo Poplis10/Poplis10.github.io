@@ -45,7 +45,11 @@ db.ref('weeklyPlan').on('value', snapshot => {
 
 // 2. ODBIERANIE BAZY DAŃ (TWOICH PRZEPISÓW)
 db.ref('mealDatabase').on('value', snapshot => {
-	const data = snapshot.val() || []
+	let data = snapshot.val() || []
+
+	// SORTOWANIE ALFABETYCZNE (Ignoruje wielkość liter)
+	data = data.filter(m => m && m.name).sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase(), 'pl'))
+
 	globalMealDatabase = data
 
 	// 1. Czyszczenie i renderowanie bazy (akordeonów)
@@ -53,14 +57,13 @@ db.ref('mealDatabase').on('value', snapshot => {
 
 	data.forEach(meal => {
 		if (meal && meal.category) {
-			// Przekazujemy shouldSave = false, żeby nie nadpisywać Firebase przy każdym posiłku
+			// shouldSave = false, bo dane już są w Firebase, tylko je wyświetlamy
 			createNewMealCard(meal.category, meal.name, meal.ingredients, meal.recipe, false)
 		}
 	})
 
-	// 2. AKTUALIZACJA LICZNIKÓW (Bardzo ważne tutaj!)
+	// 2. AKTUALIZACJA LICZNIKÓW
 	updateAllCounts()
-
 	// 3. SYNCHRONIZACJA DANYCH W TABELI
 	let localTableUpdated = false
 	const allPlannedMeals = document.querySelectorAll('.meal-container')
@@ -246,24 +249,26 @@ mealForm.onsubmit = e => {
 }
 
 function createNewMealCard(category, name, ingredients, recipe, shouldSave) {
-	const safeCat = category.replace('ą', 'a')
-	const accordion = document.getElementById(`db-${safeCat}`)
+    const safeCat = category.replace('ą', 'a')
+    const accordion = document.getElementById(`db-${safeCat}`)
 
-	if (!accordion) {
-		console.error('Nie znaleziono akordeonu dla kategorii:', safeCat)
-		return
-	}
+    if (!accordion) return
 
-	const targetSection = accordion.querySelector('.category-content')
-	const mealCard = document.createElement('div')
-	mealCard.className = 'meal-card'
+    const targetSection = accordion.querySelector('.category-content')
+    const mealCard = document.createElement('div')
+    mealCard.className = 'meal-card'
 
-	// Przekazujemy przepis dalej
-	updateMealCard(mealCard, category, name, ingredients, recipe)
-	targetSection.appendChild(mealCard)
+    updateMealCard(mealCard, category, name, ingredients, recipe)
+    
+    // Jeśli shouldSave jest true (dodajemy nowe danie), 
+    // to Firebase i tak zaraz wyśle nam nową, posortowaną listę, 
+    // więc nie musimy martwić się o ręczne wstawianie w odpowiednie miejsce.
+    targetSection.appendChild(mealCard)
 
-	if (shouldSave) saveDatabaseToLocalStorage()
-	updateAllCounts()
+    if (shouldSave) {
+        saveDatabaseToLocalStorage() 
+    }
+    updateAllCounts()
 }
 
 function updateMealCard(card, category, name, ingredients, recipe) {
