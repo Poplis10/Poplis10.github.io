@@ -45,38 +45,48 @@ db.ref('weeklyPlan').on('value', snapshot => {
 
 // 2. ODBIERANIE BAZY DAŃ (TWOICH PRZEPISÓW)
 db.ref('mealDatabase').on('value', snapshot => {
-	let data = snapshot.val() || []
+	const rawData = snapshot.val() || []
 
-	// SORTOWANIE ALFABETYCZNE (Ignoruje wielkość liter)
-	data = data.filter(m => m && m.name).sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase(), 'pl'))
+	// Konwertujemy na tablicę (jeśli Firebase zwrócił obiekt) i filtrujemy puste wpisy
+	let dataArray = Array.isArray(rawData) ? rawData : Object.values(rawData)
+	dataArray = dataArray.filter(meal => meal && meal.name)
 
-	globalMealDatabase = data
+	// --- SORTOWANIE ALFABETYCZNE ---
+	dataArray.sort((a, b) => {
+		return a.name.localeCompare(b.name, 'pl', { sensitivity: 'base' })
+	})
 
-	// 1. Czyszczenie i renderowanie bazy (akordeonów)
+	// Aktualizujemy globalną zmienną, żeby Meal Picker też był posortowany
+	globalMealDatabase = dataArray
+
+	// 1. Czyszczenie wszystkich akordeonów przed ponownym renderowaniem
 	document.querySelectorAll('.category-content').forEach(c => (c.innerHTML = ''))
 
-	data.forEach(meal => {
-		if (meal && meal.category) {
-			// shouldSave = false, bo dane już są w Firebase, tylko je wyświetlamy
+	// 2. Renderowanie posortowanych dań
+	dataArray.forEach(meal => {
+		if (meal.category) {
+			// Przekazujemy shouldSave = false, bo dane właśnie przyszły Z bazy,
+			// więc nie chcemy ich do niej wysyłać z powrotem.
 			createNewMealCard(meal.category, meal.name, meal.ingredients, meal.recipe, false)
 		}
 	})
 
-	// 2. AKTUALIZACJA LICZNIKÓW
+	// 3. AKTUALIZACJA LICZNIKÓW
 	updateAllCounts()
-	// 3. SYNCHRONIZACJA DANYCH W TABELI
-	let localTableUpdated = false
+
+	// 4. SYNCHRONIZACJA DANYCH W TABELI
 	const allPlannedMeals = document.querySelectorAll('.meal-container')
+	let localTableUpdated = false
 
 	allPlannedMeals.forEach(container => {
 		const mealNameInTable = container.querySelector('.meal-name-text').innerText
-		const updatedMeal = data.find(m => m.name === mealNameInTable)
+		const updatedMeal = globalMealDatabase.find(m => m.name === mealNameInTable)
 
 		if (updatedMeal) {
 			const currentIng = container.getAttribute('data-ingredients')
 			const currentRec = container.getAttribute('data-recipe')
 
-			// Sprawdzamy różnice
+			// Jeśli nazwa się zgadza, ale składniki lub przepis są inne - aktualizuj
 			if (currentIng !== (updatedMeal.ingredients || '') || currentRec !== (updatedMeal.recipe || '')) {
 				container.setAttribute('data-ingredients', updatedMeal.ingredients || '')
 				container.setAttribute('data-recipe', updatedMeal.recipe || '')
@@ -85,13 +95,7 @@ db.ref('mealDatabase').on('value', snapshot => {
 		}
 	})
 
-	// 4. ZAPIS DO FIREBASE (Tylko jeśli faktycznie coś się zmieniło w danych)
 	if (localTableUpdated) {
-		console.log('Synchronizacja: Dane posiłku w tabeli zostały zaktualizowane na podstawie bazy.')
-
-		// UWAGA: Wywołaj zapis do Firebase TYLKO jeśli Twoja funkcja
-		// saveTableToLocalStorage ma wbudowane sprawdzanie różnic lub
-		// jeśli to absolutnie konieczne.
 		saveTableToLocalStorage()
 	}
 })
@@ -232,16 +236,38 @@ function saveTableToLocalStorage() {
 mealForm.onsubmit = e => {
 	e.preventDefault()
 	const category = document.getElementById('modal-category-select').value
-	const name = document.getElementById('mealNameInput').value
+	const newName = document.getElementById('mealNameInput').value
 	const ingredients = document.getElementById('ingredientsInput').value
-	const recipe = document.getElementById('recipeInput').value // Pobieramy przepis
+	const recipe = document.getElementById('recipeInput').value
 
 	if (editingCard) {
-		// Dodajemy przepis jako 5-ty argument
-		updateMealCard(editingCard, category, name, ingredients, recipe)
+		const oldName = editingCard.originalName
+
+		// Jeśli nazwa została zmieniona
+		if (oldName && oldName !== newName) {
+			// 1. Aktualizujemy wszystkie wystąpienia w tabeli (Jadłospisie)
+			document.querySelectorAll('.meal-container').forEach(container => {
+				const textDiv = container.querySelector('.meal-name-text')
+				if (textDiv && textDiv.innerText.trim() === oldName.trim()) {
+					textDiv.innerText = newName
+					container.setAttribute('data-ingredients', ingredients)
+					container.setAttribute('data-recipe', recipe)
+				}
+			})
+
+			// Zapisujemy tabelę do Firebase
+			saveTableToLocalStorage()
+		}
+
+		// 2. Aktualizujemy kartę w bazie dań
+		// WAŻNE: updateMealCard musi ustawić nowy setAttribute('data-name', newName)
+		updateMealCard(editingCard, category, newName, ingredients, recipe)
+
+		// Czyścimy zmienną pomocniczą po zakończeniu
+		editingCard.originalName = null
+		editingCard = null
 	} else {
-		// Dodajemy przepis jako 4-ty argument
-		createNewMealCard(category, name, ingredients, recipe, true)
+		createNewMealCard(category, newName, ingredients, recipe, true)
 	}
 
 	saveDatabaseToLocalStorage()
@@ -249,26 +275,26 @@ mealForm.onsubmit = e => {
 }
 
 function createNewMealCard(category, name, ingredients, recipe, shouldSave) {
-    const safeCat = category.replace('ą', 'a')
-    const accordion = document.getElementById(`db-${safeCat}`)
+	const safeCat = category.replace('ą', 'a')
+	const accordion = document.getElementById(`db-${safeCat}`)
 
-    if (!accordion) return
+	if (!accordion) return
 
-    const targetSection = accordion.querySelector('.category-content')
-    const mealCard = document.createElement('div')
-    mealCard.className = 'meal-card'
+	const targetSection = accordion.querySelector('.category-content')
+	const mealCard = document.createElement('div')
+	mealCard.className = 'meal-card'
 
-    updateMealCard(mealCard, category, name, ingredients, recipe)
-    
-    // Jeśli shouldSave jest true (dodajemy nowe danie), 
-    // to Firebase i tak zaraz wyśle nam nową, posortowaną listę, 
-    // więc nie musimy martwić się o ręczne wstawianie w odpowiednie miejsce.
-    targetSection.appendChild(mealCard)
+	updateMealCard(mealCard, category, name, ingredients, recipe)
 
-    if (shouldSave) {
-        saveDatabaseToLocalStorage() 
-    }
-    updateAllCounts()
+	// Jeśli shouldSave jest true (dodajemy nowe danie),
+	// to Firebase i tak zaraz wyśle nam nową, posortowaną listę,
+	// więc nie musimy martwić się o ręczne wstawianie w odpowiednie miejsce.
+	targetSection.appendChild(mealCard)
+
+	if (shouldSave) {
+		saveDatabaseToLocalStorage()
+	}
+	updateAllCounts()
 }
 
 function updateMealCard(card, category, name, ingredients, recipe) {
@@ -279,7 +305,7 @@ function updateMealCard(card, category, name, ingredients, recipe) {
 	card.setAttribute('data-name', safeName)
 	card.setAttribute('data-ingredients', safeIngredients)
 	card.setAttribute('data-category', category)
-	card.setAttribute('data-recipe', safeRecipe) // Zapisujemy przepis w atrybucie karty
+	card.setAttribute('data-recipe', safeRecipe)
 
 	card.innerHTML = `
         <div class="meal-info-container">
@@ -474,10 +500,13 @@ function closeModal() {
 
 function editMeal(card) {
 	editingCard = card
+	// Kluczowe: pobieramy aktualną nazwę zapisaną w karcie
+	const currentNameOnCard = card.getAttribute('data-name')
+	editingCard.originalName = currentNameOnCard
+
 	document.getElementById('modal-category-select').value = card.getAttribute('data-category')
-	document.getElementById('mealNameInput').value = card.getAttribute('data-name')
+	document.getElementById('mealNameInput').value = currentNameOnCard
 	document.getElementById('ingredientsInput').value = card.getAttribute('data-ingredients')
-	// DODAJ TO:
 	document.getElementById('recipeInput').value = card.getAttribute('data-recipe')
 
 	document.getElementById('modalOverlay').style.display = 'flex'
