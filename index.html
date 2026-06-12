@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jadłospis - Formularz</title>
 
-    <link rel="manifest" href="manifest.json">
+    <!-- <link rel="manifest" href="manifest.json"> -->
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -40,20 +40,6 @@
                         <td id="sn-6"></td>
                         <td id="sn-7"></td>
                     </tr>
-                    <tr data-category="obiad">
-                        <td class="row-title">Obiad</td>
-                        <td id="ob-1" colspan="2"></td>
-                        <td id="ob-3" colspan="2"></td>
-                        <td id="ob-5"></td>
-                        <td id="ob-6" colspan="2"></td>
-                    </tr>
-                    <tr data-category="kolacja">
-                        <td class="row-title">Kolacja</td>
-                        <td id="ko-1" colspan="2"></td>
-                        <td id="ko-3" colspan="2"></td>
-                        <td id="ko-5"></td>
-                        <td id="ko-6" colspan="2"></td>
-                    </tr>
                     <tr data-category="przekąska">
                         <td class="row-title">Przekąska</td>
                         <td id="pr-1"></td>
@@ -63,6 +49,23 @@
                         <td id="pr-5"></td>
                         <td id="pr-6"></td>
                         <td id="pr-7"></td>
+                    </tr>
+                    <tr data-category="obiad">
+                        <td class="row-title">Obiad</td>
+                        <td id="ob-1" colspan="2"></td>
+                        <td id="ob-3" colspan="2"></td>
+                        <td id="ob-5"></td>
+                        <td id="ob-6" colspan="2"></td>
+                    </tr>
+                    <tr data-category="kolacja">
+                        <td class="row-title">Kolacja</td>
+                        <td id="ko-1"></td>
+                        <td id="ko-2"></td>
+                        <td id="ko-3"></td>
+                        <td id="ko-4"></td>
+                        <td id="ko-5"></td>
+                        <td id="ko-6"></td>
+                        <td id="ko-7"></td>
                     </tr>
                 </tbody>
             </table>
@@ -109,6 +112,13 @@
                         </div>
                     </details>
 
+                    <details id="db-przekaska" class="category-accordion">
+                        <summary>Przekąski <span class="meal-count">(0)</span></summary>
+                        <div class="category-wrapper">
+                            <div class="category-content"></div>
+                        </div>
+                    </details>
+
                     <details id="db-obiad" class="category-accordion">
                         <summary>Obiady <span class="meal-count">(0)</span></summary>
                         <div class="category-wrapper">
@@ -123,12 +133,13 @@
                         </div>
                     </details>
 
-                    <details id="db-przekaska" class="category-accordion">
-                        <summary>Przekąski <span class="meal-count">(0)</span></summary>
+                    <details id="db-gotowiec" class="category-accordion">
+                        <summary>Gotowce <span class="meal-count">(0)</span></summary>
                         <div class="category-wrapper">
                             <div class="category-content"></div>
                         </div>
                     </details>
+
                 </div>
             </div>
 
@@ -151,28 +162,64 @@
 
         <div id="modalOverlay" class="overlay">
             <div class="modal">
-                <h2>Dodaj posiłek do bazy</h2>
-                <form id="mealForm">
+                <h2 id="modalFormTitle">Dodaj do bazy</h2>
+                <form id="addToDatabaseForm">
                     <label>Kategoria:</label>
-                    <select id="modal-category-select">
+                    <select id="db-category-select" onchange="toggleFormFields()">
                         <option value="śniadanie">Śniadanie</option>
+                        <option value="przekąska">Przekąska</option>
                         <option value="obiad">Obiad</option>
                         <option value="kolacja">Kolacja</option>
-                        <option value="przekąska">Przekąska</option>
+                        <option value="gotowiec">Gotowiec (Zestaw jednodniowy)</option>
                     </select>
 
-                    <label>Nazwa posiłku:</label>
-                    <input type="text" id="mealNameInput" placeholder="np. Shakshuka" required>
+                    <label>Nazwa (np. Shakshuka):</label>
+                    <input type="text" id="mealNameInput" placeholder="Wpisz nazwę..." required>
 
-                    <label>Składniki:</label>
-                    <textarea id="ingredientsInput" rows="2" placeholder="Składniki (oddziel przecinkami)..."
-                        required></textarea>
+                    <div id="singleMealFields">
+                        <label>Składniki:</label>
+                        <textarea id="ingredientsInput" rows="2"
+                            placeholder="Składniki (oddziel przecinkami)..."></textarea>
 
-                    <label>Przepis / Sposób przygotowania:</label>
-                    <textarea id="recipeInput" rows="2" placeholder="Opisz jak przygotować danie..."
-                        required></textarea>
+                        <label>Przepis / Sposób przygotowania:</label>
+                        <textarea id="recipeInput" rows="2" placeholder="Opisz jak przygotować danie..."></textarea>
+                    </div>
 
-                    <div class="modal-buttons">
+                    <div id="gotowiecFields" style="display: none;">
+                        <hr style="margin: 15px 0; border: 0; border-top: 1px dashed #ccc;">
+
+                        <h3>Skład zestawu:</h3>
+
+                        <fieldset>
+                            <legend><b>1. Śniadanie</b></legend>
+                            <input type="text" id="gotowiec-sn-name" placeholder="Nazwa śniadania">
+                            <textarea id="gotowiec-sn-ing" rows="1" placeholder="Składniki śniadania..."></textarea>
+                            <textarea id="gotowiec-sn-rec" rows="1" placeholder="Przepis na śniadanie..."></textarea>
+                        </fieldset>
+
+                        <fieldset>
+                            <legend><b>2. Przekąska</b></legend>
+                            <input type="text" id="gotowiec-pr-name" placeholder="Nazwa przekąski">
+                            <textarea id="gotowiec-pr-ing" rows="1" placeholder="Składniki przekąski..."></textarea>
+                            <textarea id="gotowiec-pr-rec" rows="1" placeholder="Przepis na przekąskę..."></textarea>
+                        </fieldset>
+
+                        <fieldset>
+                            <legend><b>3. Obiad</b></legend>
+                            <input type="text" id="gotowiec-ob-name" placeholder="Nazwa obiadu">
+                            <textarea id="gotowiec-ob-ing" rows="1" placeholder="Składniki obiadu..."></textarea>
+                            <textarea id="gotowiec-ob-rec" rows="1" placeholder="Przepis na obiad..."></textarea>
+                        </fieldset>
+
+                        <fieldset>
+                            <legend><b>4. Kolacja</b></legend>
+                            <input type="text" id="gotowiec-ko-name" placeholder="Nazwa kolacji">
+                            <textarea id="gotowiec-ko-ing" rows="1" placeholder="Składniki kolacji..."></textarea>
+                            <textarea id="gotowiec-ko-rec" rows="1" placeholder="Przepis na kolację..."></textarea>
+                        </fieldset>
+                    </div>
+
+                    <div class="modal-buttons" style="margin-top: 15px;">
                         <button type="button" id="cancelBtn" class="btn-secondary">Anuluj</button>
                         <button type="submit" class="btn-primary">Zapisz w bazie</button>
                     </div>
@@ -199,9 +246,9 @@
                     <label for="modal-category-select">Wybierz posiłek:</label>
                     <select id="modal-category-select">
                         <option value="śniadanie">Śniadanie</option>
+                        <option value="przekąska">Przekąska</option>
                         <option value="obiad">Obiad</option>
                         <option value="kolacja">Kolacja</option>
-                        <option value="przekąska">Przekąska</option>
                     </select>
 
                     <div class="modal-actions">
@@ -292,7 +339,7 @@
 
         <div id="settings-menu">
             <h3>Ustawienia</h3>
-                <button id="theme-toggle" onclick="toggleTheme()">🌙 Tryb Ciemny</button>
+            <button id="theme-toggle" onclick="toggleTheme()">🌙 Tryb Ciemny</button>
 
             <hr>
 

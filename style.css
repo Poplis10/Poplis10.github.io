@@ -723,13 +723,16 @@ button:active {
 
 .modal {
 	background: white;
-	margin: 30px;
-	padding: 30px;
+	margin: 20px;
+	padding: 25px;
 	border-radius: 12px;
 	min-width: 300px;
-	width: 90%;
-	max-width: 400px;
+	width: 95%;
+	max-width: 460px; /* Lekko zwiększamy przestrzeń roboczą */
+	max-height: 85vh; /* Modal zajmie max 85% wysokości ekranu */
+	overflow-y: auto; /* KLUCZOWE: Pojawi się ładny scroll, gdy pól będzie za dużo */
 	box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+	position: relative;
 }
 
 /* Przyciski */
@@ -861,6 +864,100 @@ button {
 	padding: 2px 6px;
 	border-radius: 4px;
 	font-size: 0.75em;
+}
+
+/* Kontenery sekcji */
+#singleMealFields,
+#gotowiecFields {
+	display: flex;
+	flex-direction: column;
+	gap: 15px;
+	width: 100%;
+}
+
+/* Wizualne zgrupowanie każdego posiłku z zestawu */
+.gotowiec-meal-group {
+	background: #f8f9fa;
+	padding: 15px;
+	border-radius: 8px;
+	border-left: 4px solid #4caf50; /* Zielony akcent dla estetyki */
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin-bottom: 5px;
+}
+
+/* Tytuł posiłku w grupie (np. ŚNIADANIE) */
+.gotowiec-meal-group h4 {
+	margin: 0 0 5px 0;
+	color: #2c3e50;
+	font-size: 13px;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+}
+
+/* Optymalizacja wysokości pól tekstowych wewnątrz zestawu, by nie marnować miejsca */
+.gotowiec-meal-group textarea {
+	min-height: 50px !important;
+	height: 50px;
+	font-size: 13px;
+	padding: 8px;
+}
+
+.gotowiec-meal-group input {
+	font-size: 13px;
+	padding: 8px;
+}
+
+/* Wrzucenie tego do pliku .css pozwoli usunąć atrybuty 'style="..."' z fieldsetów */
+#gotowiecFields fieldset {
+	margin-bottom: 15px;
+	padding: 15px;
+	border: 1px solid #ddd;
+	border-radius: 8px;
+	background: #fdfdfd;
+}
+
+#gotowiecFields legend {
+	padding: 0 8px;
+	color: #2c3e50;
+}
+
+#gotowiecFields input,
+#gotowiecFields textarea {
+	width: 100%;
+	margin-bottom: 10px;
+}
+
+#gotowiecFields textarea:last-child {
+	margin-bottom: 0; /* Usuwa zbędny margines pod ostatnim polem w sekcji */
+}
+
+/* Delikatne odsunięcie kafelków od siebie w pionie */
+.sub-meals-grid {
+	width: 100%;
+	padding: 5px 0;
+}
+
+/* Usunięcie domyślnego marginesu, jeśli pod-kafelek jest ostatni */
+.meal-card.sub-card:last-child {
+	margin-bottom: 0;
+}
+
+/* Płynne przewijanie paska scrolla dla nowoczesnego wyglądu */
+.modal::-webkit-scrollbar {
+	width: 6px;
+}
+.modal::-webkit-scrollbar-track {
+	background: #f1f1f1;
+	border-radius: 10px;
+}
+.modal::-webkit-scrollbar-thumb {
+	background: #c1c1c1;
+	border-radius: 10px;
+}
+.modal::-webkit-scrollbar-thumb:hover {
+	background: #a8a8a8;
 }
 
 /* Definicje kolorów dla trybu ciemnego */

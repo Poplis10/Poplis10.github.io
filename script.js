@@ -6,7 +6,6 @@ if ('serviceWorker' in navigator) {
 const firebaseConfig = {
 	apiKey: 'AIzaSyBRVtplChkbGQsT10SvQXnYywLYKRVIY3E',
 	authDomain: 'jadlospis-bee5a.firebaseapp.com',
-	// Upewnij się, że ten link zgadza się z tym, co widzisz w zakładce Realtime Database!
 	databaseURL: 'https://jadlospis-bee5a-default-rtdb.europe-west1.firebasedatabase.app/',
 	projectId: 'jadlospis-bee5a',
 	storageBucket: 'jadlospis-bee5a.firebasestorage.app',
@@ -14,7 +13,7 @@ const firebaseConfig = {
 	appId: '1:934978468199:web:354a6cb971784796b497c2',
 }
 
-// Inicjalizacja (Styl Compat - pasuje do reszty Twojego kodu)
+// Inicjalizacja (Styl Compat)
 firebase.initializeApp(firebaseConfig)
 const db = firebase.database()
 let globalMealDatabase = [] // Tutaj będziemy trzymać dania z chmury
@@ -29,13 +28,7 @@ db.ref('weeklyPlan').on('value', snapshot => {
 	const data = snapshot.val() || {}
 	document.querySelectorAll('td[id]').forEach(cell => {
 		if (data[cell.id]) {
-			// TUTAJ BYŁ BŁĄD: Musisz przekazać 4 argumenty (cell, name, ingredients, recipe)
-			fillTableCell(
-				cell,
-				data[cell.id].name,
-				data[cell.id].ingredients,
-				data[cell.id].recipe || '', // Dodajemy przepis z bazy!
-			)
+			fillTableCell(cell, data[cell.id].name, data[cell.id].ingredients, data[cell.id].recipe || '')
 		} else {
 			cell.innerHTML = `<button class="add-btn table-btn" onclick="openMealPicker(this)">+</button>`
 			cell.style.padding = '5px'
@@ -47,49 +40,75 @@ db.ref('weeklyPlan').on('value', snapshot => {
 db.ref('mealDatabase').on('value', snapshot => {
 	const rawData = snapshot.val() || []
 
-	// Konwertujemy na tablicę (jeśli Firebase zwrócił obiekt) i filtrujemy puste wpisy
 	let dataArray = Array.isArray(rawData) ? rawData : Object.values(rawData)
 	dataArray = dataArray.filter(meal => meal && meal.name)
 
 	// --- SORTOWANIE ALFABETYCZNE ---
-	dataArray.sort((a, b) => {
-		return a.name.localeCompare(b.name, 'pl', { sensitivity: 'base' })
-	})
+	dataArray.sort((a, b) => a.name.localeCompare(b.name, 'pl', { sensitivity: 'base' }))
 
-	// Aktualizujemy globalną zmienną, żeby Meal Picker też był posortowany
 	globalMealDatabase = dataArray
 
-	// 1. Czyszczenie wszystkich akordeonów przed ponownym renderowaniem
+	// Czyszczenie wszystkich akordeonów przed ponownym renderрованием
 	document.querySelectorAll('.category-content').forEach(c => (c.innerHTML = ''))
 
-	// 2. Renderowanie posortowanych dań
+	// Renderowanie posortowanych dań
 	dataArray.forEach(meal => {
 		if (meal.category) {
-			// Przekazujemy shouldSave = false, bo dane właśnie przyszły Z bazy,
-			// więc nie chcemy ich do niej wysyłać z powrotem.
-			createNewMealCard(meal.category, meal.name, meal.ingredients, meal.recipe, false)
+			createNewMealCard(
+				meal.category,
+				meal.name,
+				meal.ingredients || '',
+				meal.recipe || '',
+				false, // shouldSave = false, bo dane czytamy Z bazy
+				meal.gotowiecData || null,
+			)
 		}
 	})
 
-	// 3. AKTUALIZACJA LICZNIKÓW
+	// AKTUALIZACJA LICZNIKÓW
 	updateAllCounts()
 
-	// 4. SYNCHRONIZACJA DANYCH W TABELI
+	// SYNCHRONIZACJA DANYCH W TABELI
 	const allPlannedMeals = document.querySelectorAll('.meal-container')
 	let localTableUpdated = false
 
 	allPlannedMeals.forEach(container => {
 		const mealNameInTable = container.querySelector('.meal-name-text').innerText
-		const updatedMeal = globalMealDatabase.find(m => m.name === mealNameInTable)
+
+		let updatedIngredients = null
+		let updatedRecipe = null
+		let found = false
+
+		// 1. Najpierw szukamy w zwykłych daniach
+		const updatedMeal = globalMealDatabase.find(m => m.name === mealNameInTable && m.category !== 'gotowiec')
 
 		if (updatedMeal) {
-			const currentIng = container.getAttribute('data-ingredients')
-			const currentRec = container.getAttribute('data-recipe')
+			updatedIngredients = updatedMeal.ingredients || ''
+			updatedRecipe = updatedMeal.recipe || ''
+			found = true
+		} else {
+			// 2. Jeśli nie znaleziono, głębokie przeszukanie pod-dań wewnątrz gotowców
+			for (const meal of globalMealDatabase) {
+				if (meal.category === 'gotowiec' && meal.gotowiecData) {
+					const subMeal = Object.values(meal.gotowiecData).find(sm => sm.name === mealNameInTable)
+					if (subMeal) {
+						updatedIngredients = subMeal.ingredients || ''
+						updatedRecipe = subMeal.recipe || ''
+						found = true
+						break // Znalezione, przerywamy pętlę for
+					}
+				}
+			}
+		}
 
-			// Jeśli nazwa się zgadza, ale składniki lub przepis są inne - aktualizuj
-			if (currentIng !== (updatedMeal.ingredients || '') || currentRec !== (updatedMeal.recipe || '')) {
-				container.setAttribute('data-ingredients', updatedMeal.ingredients || '')
-				container.setAttribute('data-recipe', updatedMeal.recipe || '')
+		// Jeśli znaleźliśmy dopasowanie w bazie, sprawdzamy czy zmieniła się treść
+		if (found) {
+			const currentIng = container.getAttribute('data-ingredients') || ''
+			const currentRec = container.getAttribute('data-recipe') || ''
+
+			if (currentIng !== updatedIngredients || currentRec !== updatedRecipe) {
+				container.setAttribute('data-ingredients', updatedIngredients)
+				container.setAttribute('data-recipe', updatedRecipe)
 				localTableUpdated = true
 			}
 		}
@@ -112,7 +131,22 @@ document.addEventListener('DOMContentLoaded', () => {
 	updateAuthUI(isAuth)
 	initTheme()
 
-	// 1. Rozgrzewanie animacji (Hover)
+	// Inicjalizacja domyślnego widoku formularza bazowego
+	toggleFormFields()
+
+	// Poprawione ID z "modal-category-select" na "db-category-select" (zgodnie z HTML)
+	const categorySelect = document.getElementById('db-category-select')
+	if (categorySelect) {
+		categorySelect.addEventListener('change', toggleFormFields)
+	}
+
+	// Obsługa zapisu formularza dodawania do bazy
+	const dbForm = document.getElementById('addToDatabaseForm')
+	if (dbForm) {
+		dbForm.addEventListener('submit', handleDatabaseFormSubmit)
+	}
+
+	// Rozgrzewanie animacji (Hover)
 	document.querySelectorAll('.category-accordion').forEach(acc => {
 		acc.addEventListener(
 			'mouseenter',
@@ -124,10 +158,10 @@ document.addEventListener('DOMContentLoaded', () => {
 		)
 	})
 
-	// 2. Obsługa otwierania/zamykania akordeonów
+	// Obsługa otwierania/zamykania akordeonów
 	document.querySelectorAll('.category-accordion summary').forEach(summary => {
 		summary.addEventListener('click', e => {
-			const details = summary.parentElement // Lepiej użyć summary.parentElement
+			const details = summary.parentElement
 			const wrapper = details.querySelector('.category-wrapper')
 
 			if (details.open) {
@@ -143,17 +177,167 @@ document.addEventListener('DOMContentLoaded', () => {
 		})
 	})
 
-	// Wywołanie przy starcie strony
 	updateAllCounts()
 })
 
-// --- WYCIĄGNIJ FUNKCJĘ TUTAJ (na zewnątrz) ---
-// Dzięki temu będzie dostępna dla Firebase i funkcji deleteMeal
+// --- FUNKCJE OBSŁUGI MODALA I BAZY ---
+
+// Przełączanie widoków w formularzu
+function toggleFormFields() {
+	const categorySelect = document.getElementById('db-category-select')
+	const singleMealFields = document.getElementById('singleMealFields')
+	const gotowiecFields = document.getElementById('gotowiecFields')
+	const nameInput = document.getElementById('mealNameInput')
+
+	if (!categorySelect || !singleMealFields || !gotowiecFields) return
+
+	if (categorySelect.value === 'gotowiec') {
+		singleMealFields.style.display = 'none'
+		gotowiecFields.style.display = 'block'
+		if (nameInput) nameInput.placeholder = 'Wpisz nazwę zestawu (np. Dzień 1)...'
+	} else {
+		singleMealFields.style.display = 'flex'
+		gotowiecFields.style.display = 'none'
+		if (nameInput) nameInput.placeholder = 'Wpisz nazwę (np. Shakshuka)...'
+	}
+}
+
+// Przechwycenie wysyłki formularza i zapis w Realtime Database
+async function handleDatabaseFormSubmit(e) {
+	e.preventDefault() // Blokada przeładowania strony
+
+	// TA LINIJKA MUSI BYĆ TUTAJ – przed jakimikolwiek warunkami if!
+	const form = e.target
+
+	// === NOWY WARUNEK: EDYCJA SAMEJ NAZWY ZESTAWU ===
+	if (form && form.getAttribute('data-mode') === 'edit-gotowiec-name') {
+		const oldName = form.getAttribute('data-old-name')
+		const nameInput = document.getElementById('mealNameInput')
+		const newName = nameInput ? nameInput.value.trim() : ''
+
+		if (!newName) {
+			alert('Nazwa zestawu nie może być pusta!')
+			return
+		}
+
+		await saveGotowiecNameFromModal(oldName, newName)
+		return // Przerywamy, żeby nie dodało nowego posiłku
+	}
+	// ===============================================
+
+	// === TUTAJ SPRAWDZAMY CZY FORMULARZ JEST W TRYBIE EDYCJI SUB-DANIA ===
+	if (form && form.getAttribute('data-mode') === 'edit-sub-meal') {
+		const parentName = form.getAttribute('data-parent-name')
+		const subKey = form.getAttribute('data-sub-key')
+
+		const nameInput = document.getElementById('mealNameInput')
+		const newName = nameInput ? nameInput.value : 'Bez nazwy'
+		const newIngredients = document.getElementById('ingredientsInput').value
+		const newRecipe = document.getElementById('recipeInput').value
+
+		await saveSubMealFromModal(parentName, subKey, newName, newIngredients, newRecipe)
+		return
+	}
+
+	// === 2. INTELIGENTNA LOGIKA ZAPISU (ZAPOBIEGANIE DUPLIKATOM) ===
+	const category = document.getElementById('db-category-select').value
+	const nameInputEl = document.getElementById('mealNameInput')
+	const mainName = nameInputEl ? nameInputEl.value.trim() : ''
+
+	if (!mainName) {
+		alert('Nazwa posiłku nie może być pusta!')
+		return
+	}
+
+	let mealData = {
+		category: category,
+		name: mainName,
+	}
+
+	// Budowanie struktury na podstawie wybranego typu
+	if (category === 'gotowiec') {
+		mealData.ingredients = ''
+		mealData.recipe = ''
+		mealData.gotowiecData = {
+			breakfast: {
+				name: document.getElementById('gotowiec-sn-name').value || 'Śniadanie',
+				ingredients: document.getElementById('gotowiec-sn-ing').value,
+				recipe: document.getElementById('gotowiec-sn-rec').value,
+			},
+			snack: {
+				name: document.getElementById('gotowiec-pr-name').value || 'Przekąska',
+				ingredients: document.getElementById('gotowiec-pr-ing').value,
+				recipe: document.getElementById('gotowiec-pr-rec').value,
+			},
+			lunch: {
+				name: document.getElementById('gotowiec-ob-name').value || 'Obiad',
+				ingredients: document.getElementById('gotowiec-ob-ing').value,
+				recipe: document.getElementById('gotowiec-ob-rec').value,
+			},
+			dinner: {
+				name: document.getElementById('gotowiec-ko-name').value || 'Kolacja',
+				ingredients: document.getElementById('gotowiec-ko-ing').value,
+				recipe: document.getElementById('gotowiec-ko-rec').value,
+			},
+		}
+	} else {
+		// Standardowe pojedyncze danie
+		mealData.ingredients = document.getElementById('ingredientsInput').value
+		mealData.recipe = document.getElementById('recipeInput').value
+		mealData.gotowiecData = null
+	}
+
+	// Zapis do Firebase Realtime Database z funkcją sprawdzania duplikatów
+	try {
+		// Określamy, czy szukamy po starej nazwie (tryb edycji), czy po aktualnie wpisanej
+		const isEditMode = form.getAttribute('data-mode') === 'edit-meal'
+		const searchName = isEditMode ? form.getAttribute('data-old-name') : mainName
+
+		// Przeszukujemy bazę w poszukiwaniu dania o tej nazwie
+		const snapshot = await db.ref('mealDatabase').orderByChild('name').equalTo(searchName).once('value')
+		const data = snapshot.val()
+
+		if (data) {
+			// DANIE ISTNIEJE -> AKTUALIZACJA (Nadpisujemy istniejący węzeł)
+			const firebaseKey = Object.keys(data)[0]
+			await db.ref(`mealDatabase/${firebaseKey}`).set(mealData)
+			alert('Posiłek został pomyślnie zaktualizowany w bazie!')
+		} else {
+			// NOWE DANIE -> PUSH
+			await db.ref('mealDatabase').push(mealData)
+			alert('Posiłek został pomyślnie dodany do bazy!')
+		}
+
+		// Czyszczenie flag, reset formularza i zamknięcie okna
+		form.removeAttribute('data-mode')
+		form.removeAttribute('data-old-name')
+		form.reset()
+
+		// Przywrócenie widoczności selecta kategorii (na wypadek gdyby był ukryty po edycji nazwy gotowca)
+		const categorySelect = document.getElementById('db-category-select')
+		if (categorySelect) {
+			categorySelect.style.display = 'block'
+			const label = categorySelect.closest('label') || categorySelect.previousElementSibling
+			if (label && (label.tagName === 'LABEL' || label.classList.contains('form-group'))) {
+				label.style.display = 'block'
+			}
+		}
+
+		document.getElementById('modalOverlay').style.display = 'none'
+		toggleFormFields()
+	} catch (error) {
+		console.error('Błąd zapisu Firebase:', error)
+		alert('Wystąpił błąd podczas zapisu. Sprawdź konsolę (F12).')
+	}
+}
+
+// Licznik elementów w akordeonach
 function updateAllCounts() {
 	const accordions = document.querySelectorAll('.category-accordion')
 
 	accordions.forEach(acc => {
-		const count = acc.querySelectorAll('.meal-card').length
+		// Używamy :not(.sub-card), aby liczyć tylko główne zestawy/dania
+		const count = acc.querySelectorAll('.meal-card:not(.sub-card)').length
 		const countSpan = acc.querySelector('.meal-count')
 
 		if (countSpan) {
@@ -162,9 +346,40 @@ function updateAllCounts() {
 	})
 }
 
+async function saveGotowiecNameFromModal(oldName, newName) {
+	try {
+		// Szukamy zestawu w bazie po jego dotychczasowej nazwie
+		const snapshot = await db.ref('mealDatabase').orderByChild('name').equalTo(oldName).once('value')
+		const data = snapshot.val()
+
+		if (data) {
+			const firebaseKey = Object.keys(data)[0]
+
+			// Aktualizujemy wyłącznie pole 'name' czystą, nową wartością
+			await db.ref(`mealDatabase/${firebaseKey}/name`).set(newName)
+
+			// Czyszczenie flag i reset formularza
+			const dbForm = document.getElementById('addToDatabaseForm')
+			if (dbForm) {
+				dbForm.removeAttribute('data-mode')
+				dbForm.removeAttribute('data-old-name')
+				dbForm.reset()
+			}
+
+			// Zamknięcie modalu i przywrócenie widoków
+			document.getElementById('modalOverlay').style.display = 'none'
+			toggleFormFields()
+
+			alert('Nazwa zestawu została pomyślnie zaktualizowana!')
+		}
+	} catch (error) {
+		console.error('Błąd podczas zmiany nazwy zestawu:', error)
+		alert('Wystąpił błąd podczas zmiany nazwy w bazie danych.')
+	}
+}
+
 // --- TRYB CIEMNY ---
 
-// Wywołaj to przy starcie (np. w DOMContentLoaded), aby przywrócić zapisany tryb
 function initTheme() {
 	const savedTheme = localStorage.getItem('theme')
 	if (savedTheme === 'dark') {
@@ -186,8 +401,6 @@ function updateThemeButton(isDark) {
 	}
 }
 
-// Pamiętaj, aby dodać initTheme() do swojego document.addEventListener('DOMContentLoaded', ...)
-
 // Zamykanie modali po kliknięciu w tło
 window.onclick = e => {
 	if (e.target === modal) closeModal()
@@ -205,14 +418,19 @@ function saveDatabaseToLocalStorage() {
 	const allCards = document.querySelectorAll('.meal-card')
 	const mealsData = []
 	allCards.forEach(card => {
-		mealsData.push({
-			category: card.getAttribute('data-category'),
+		const cat = card.getAttribute('data-category')
+		const mealObj = {
+			category: cat,
 			name: card.getAttribute('data-name'),
-			ingredients: card.getAttribute('data-ingredients'),
-			recipe: card.getAttribute('data-recipe'),
-		})
+			ingredients: card.getAttribute('data-ingredients') || '',
+			recipe: card.getAttribute('data-recipe') || '',
+		}
+		// Jeśli to gotowiec, zapisujemy jego całą strukturę wewnętrzną
+		if (cat === 'gotowiec') {
+			mealObj.gotowiecData = JSON.parse(card.getAttribute('data-gotowiec-data') || '{}')
+		}
+		mealsData.push(mealObj)
 	})
-	// To wysyła listę wszystkich Twoich dań do Firebase
 	db.ref('mealDatabase').set(mealsData)
 }
 
@@ -237,15 +455,43 @@ mealForm.onsubmit = e => {
 	e.preventDefault()
 	const category = document.getElementById('modal-category-select').value
 	const newName = document.getElementById('mealNameInput').value
-	const ingredients = document.getElementById('ingredientsInput').value
-	const recipe = document.getElementById('recipeInput').value
+
+	let ingredients = ''
+	let recipe = ''
+	let gotowiecData = null
+
+	if (category === 'gotowiec') {
+		gotowiecData = {
+			sn: {
+				name: document.getElementById('gotowiec-sn-name').value,
+				ingredients: document.getElementById('gotowiec-sn-ing').value,
+				recipe: document.getElementById('gotowiec-sn-rec').value,
+			},
+			pr: {
+				name: document.getElementById('gotowiec-pr-name').value,
+				ingredients: document.getElementById('gotowiec-pr-ing').value,
+				recipe: document.getElementById('gotowiec-pr-rec').value,
+			},
+			ob: {
+				name: document.getElementById('gotowiec-ob-name').value,
+				ingredients: document.getElementById('gotowiec-ob-ing').value,
+				recipe: document.getElementById('gotowiec-ob-rec').value,
+			},
+			ko: {
+				name: document.getElementById('gotowiec-ko-name').value,
+				ingredients: document.getElementById('gotowiec-ko-ing').value,
+				recipe: document.getElementById('gotowiec-ko-rec').value,
+			},
+		}
+	} else {
+		ingredients = document.getElementById('ingredientsInput').value
+		recipe = document.getElementById('recipeInput').value
+	}
 
 	if (editingCard) {
 		const oldName = editingCard.originalName
 
-		// Jeśli nazwa została zmieniona
-		if (oldName && oldName !== newName) {
-			// 1. Aktualizujemy wszystkie wystąpienia w tabeli (Jadłospisie)
+		if (oldName && oldName !== newName && category !== 'gotowiec') {
 			document.querySelectorAll('.meal-container').forEach(container => {
 				const textDiv = container.querySelector('.meal-name-text')
 				if (textDiv && textDiv.innerText.trim() === oldName.trim()) {
@@ -254,27 +500,21 @@ mealForm.onsubmit = e => {
 					container.setAttribute('data-recipe', recipe)
 				}
 			})
-
-			// Zapisujemy tabelę do Firebase
 			saveTableToLocalStorage()
 		}
 
-		// 2. Aktualizujemy kartę w bazie dań
-		// WAŻNE: updateMealCard musi ustawić nowy setAttribute('data-name', newName)
-		updateMealCard(editingCard, category, newName, ingredients, recipe)
-
-		// Czyścimy zmienną pomocniczą po zakończeniu
+		updateMealCard(editingCard, category, newName, ingredients, recipe, gotowiecData)
 		editingCard.originalName = null
 		editingCard = null
 	} else {
-		createNewMealCard(category, newName, ingredients, recipe, true)
+		createNewMealCard(category, newName, ingredients, recipe, true, gotowiecData)
 	}
 
 	saveDatabaseToLocalStorage()
 	closeModal()
 }
 
-function createNewMealCard(category, name, ingredients, recipe, shouldSave) {
+function createNewMealCard(category, name, ingredients, recipe, shouldSave, gotowiecData = null) {
 	const safeCat = category.replace('ą', 'a')
 	const accordion = document.getElementById(`db-${safeCat}`)
 
@@ -284,11 +524,10 @@ function createNewMealCard(category, name, ingredients, recipe, shouldSave) {
 	const mealCard = document.createElement('div')
 	mealCard.className = 'meal-card'
 
-	updateMealCard(mealCard, category, name, ingredients, recipe)
+	// Generujemy zawartość karty
+	updateMealCard(mealCard, category, name, ingredients, recipe, gotowiecData)
 
-	// Jeśli shouldSave jest true (dodajemy nowe danie),
-	// to Firebase i tak zaraz wyśle nam nową, posortowaną listę,
-	// więc nie musimy martwić się o ręczne wstawianie w odpowiednie miejsce.
+	// Wrzucamy do odpowiedniej sekcji w akordeonie
 	targetSection.appendChild(mealCard)
 
 	if (shouldSave) {
@@ -297,51 +536,130 @@ function createNewMealCard(category, name, ingredients, recipe, shouldSave) {
 	updateAllCounts()
 }
 
-function updateMealCard(card, category, name, ingredients, recipe) {
+function updateMealCard(card, category, name, ingredients, recipe, gotowiecData = null) {
 	const safeName = (name || 'Bez nazwy').toString()
-	const safeIngredients = (ingredients || '').toString()
-	const safeRecipe = (recipe || '').toString() // Zabezpieczenie przepisu
-
 	card.setAttribute('data-name', safeName)
-	card.setAttribute('data-ingredients', safeIngredients)
 	card.setAttribute('data-category', category)
-	card.setAttribute('data-recipe', safeRecipe)
 
-	card.innerHTML = `
+	if (category === 'gotowiec') {
+		const dataStr = typeof gotowiecData === 'string' ? gotowiecData : JSON.stringify(gotowiecData || {})
+		card.setAttribute('data-gotowiec-data', dataStr)
+		const parsedData = typeof gotowiecData === 'string' ? JSON.parse(gotowiecData) : gotowiecData || {}
+
+		let previewHtml =
+			'<div class="sub-meals-grid" style="display: flex; flex-direction: column; gap: 12px; margin-top: 10px;">'
+
+		// POPRAWKA: Klucze muszą dokładnie odpowiadać temu, co leci do Firebase
+		const labels = {
+			breakfast: '☀️ Śniadanie',
+			snack: '🍏 Przekąska',
+			lunch: '🍲 Obiad',
+			dinner: '🌙 Kolacja',
+		}
+
+		for (let key in labels) {
+			if (parsedData[key] && parsedData[key].name) {
+				const subMeal = parsedData[key]
+				const subName = (subMeal.name || '').toString()
+				const subIng = (subMeal.ingredients || '').toString()
+				const subRec = (subMeal.recipe || '').toString()
+
+				// Generujemy niezależny mini-kafelek dla każdego pod-dania
+				previewHtml += `
+    <div class="meal-card sub-card" data-sub-key="${key}" style="border: 1px solid #eee; border-left: 5px solid #4caf50; background: #fff; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); padding: 12px; border-radius: 8px; width: 100%; margin-top: 5px;">
         <div class="meal-info-container">
-            <strong class="card-title" style="display: block; color: #2c3e50; font-size: 1.1em;">
-                ${safeName}
+            <small style="color: #7f8c8d; font-weight: bold; text-transform: uppercase; font-size: 0.75em; align-self: center;">${labels[key]}</small>
+            <strong class="card-title" style="display: block; color: #2c3e50; font-size: 1em; margin-top: 2px;">
+                ${subName}
             </strong>
         </div>
-        
-        <div class="card-actions">
-
-<button onclick="openMealModal('${safeName.replace(/'/g, "\\'")}', '${safeIngredients.replace(/'/g, "\\'")}', '${safeRecipe.replace(/'/g, "\\'")}')">
-    Dodaj +
-</button>
-            <button class="btn-preview" onclick="togglePreview(this)">Podgląd</button>
-            <button onclick="editMeal(this.parentElement.parentElement)" style="background: #f39c12;">Edytuj</button>
-            <button onclick="deleteMeal(this.parentElement.parentElement)" style="background: #e74c3c;">Usuń</button>
+        <div class="card-actions" style="margin-top: 8px; display: flex; gap: 5px; flex-wrap: wrap; justify-content: center;">
+            <button onclick="openMealModal('${subName.replace(/'/g, "\\'")}', '${subIng.replace(/'/g, "\\'")}', '${subRec.replace(/'/g, "\\'")}')" style="font-size: 0.85em; padding: 4px 8px;">
+                Dodaj +
+            </button>
+            <button class="btn-preview" onclick="toggleSubPreview(this)" style="font-size: 0.85em; padding: 4px 8px;">Podgląd</button>
+            <button onclick="editSubMeal(this)" style="background: #f39c12; font-size: 0.85em; padding: 4px 8px;">Edytuj</button>
+            <button onclick="deleteSubMeal(this)" style="background: #e74c3c; font-size: 0.85em; padding: 4px 8px;">Usuń</button>
         </div>
-
+        
         <div class="ingredients-preview">
             <div class="preview-section">
                 <strong>Składniki:</strong><br>
-                <small style="line-height: 1.4;">${safeIngredients}</small>
+                <small style="line-height: 1.4;">${subIng || 'Brak składników'}</small>
             </div>
             ${
-							safeRecipe
+							subRec
 								? `
             <div class="preview-section" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee;">
                 <strong>Przepis:</strong><br>
-                <small style="line-height: 1.4; white-space: pre-wrap;">${safeRecipe}</small>
+                <small style="line-height: 1.4; white-space: pre-wrap;">${subRec}</small>
             </div>`
 								: ''
 						}
         </div>
-    `
+    </div>
+`
+			}
+		}
+		previewHtml += '</div>'
 
-	// Logika przenoszenia do akordeonu (zostaje bez zmian)
+		card.innerHTML = `
+            <div class="meal-info-container">
+                <strong class="card-title" style="display: block; color: #2c3e50; font-size: 1.1em;">
+                    ${safeName}
+                </strong>
+            </div>
+            <div class="card-actions">
+                <button onclick="openGotowiecModal('${safeName.replace(/'/g, "\\'")}', this.closest('.meal-card'))">
+                    Dodaj Cały Zestaw +
+                </button>
+                <button class="btn-preview" onclick="togglePreview(this)">Podgląd Składu</button>
+                <button onclick="openEditGotowiecNameModal(this.closest('.meal-card'))" style="background: #f39c12;">Edytuj Nazwę</button>
+                <button onclick="deleteMeal(this.parentElement.parentElement)" style="background: #e74c3c;">Usuń Zestaw</button>
+            </div>
+            <div class="ingredients-preview">
+                <div class="preview-section">
+                    ${previewHtml}
+                </div>
+            </div>
+        `
+	} else {
+		const safeIngredients = (ingredients || '').toString()
+		const safeRecipe = (recipe || '').toString()
+		card.setAttribute('data-ingredients', safeIngredients)
+		card.setAttribute('data-recipe', safeRecipe)
+
+		card.innerHTML = `
+            <div class="meal-info-container">
+                <strong class="card-title" style="display: block; color: #2c3e50; font-size: 1.1em;">
+                    ${safeName}
+                </strong>
+            </div>
+            <div class="card-actions">
+                <button onclick="openMealModal('${safeName.replace(/'/g, "\\'")}', '${safeIngredients.replace(/'/g, "\\'")}', '${safeRecipe.replace(/'/g, "\\'")}')">
+                    Dodaj +
+                </button>
+                <button class="btn-preview" onclick="togglePreview(this)">Podgląd</button>
+                <button onclick="editMeal(this.parentElement.parentElement)" style="background: #f39c12;">Edytuj</button>
+                <button onclick="deleteMeal(this.parentElement.parentElement)" style="background: #e74c3c;">Usuń</button>
+            </div>
+            <div class="ingredients-preview">
+                <div class="preview-section">
+                    <strong>Składniki:</strong><br>
+                    <small style="line-height: 1.4;">${safeIngredients}</small>
+                </div>
+                ${
+									safeRecipe
+										? `<div class="preview-section" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee;">
+                    <strong>Przepis:</strong><br>
+                    <small style="line-height: 1.4; white-space: pre-wrap;">${safeRecipe}</small>
+                </div>`
+										: ''
+								}
+            </div>
+        `
+	}
+
 	const safeCat = category.replace('ą', 'a')
 	const targetAccordion = document.getElementById(`db-${safeCat}`)
 	if (targetAccordion) {
@@ -351,61 +669,307 @@ function updateMealCard(card, category, name, ingredients, recipe) {
 	}
 }
 
+// 1. Podgląd pojedynczego dania wewnątrz zestawu
+function toggleSubPreview(button) {
+	const subCard = button.closest('.sub-card')
+	const preview = subCard.querySelector('.ingredients-preview')
+	if (preview) {
+		// toggle() zwraca true, jeśli klasa została dodana, lub false, jeśli została usunięta
+		const isActive = preview.classList.toggle('active')
+
+		// Zmieniamy tekst w zależności od stanu
+		button.innerText = isActive ? 'Ukryj' : 'Podgląd'
+	}
+}
+
+// 2. Usunięcie pojedynczego dania z zestawu
+async function deleteSubMeal(button) {
+	if (!confirm('Czy na pewno chcesz usunąć to danie z tego zestawu jednodniowego?')) return
+
+	const parentGotowiecCard = button.closest('.meal-card:not(.sub-card)')
+	const subCard = button.closest('.sub-card')
+
+	const gotowiecName = parentGotowiecCard.getAttribute('data-name')
+	const subKey = subCard.getAttribute('data-sub-key') // np. 'breakfast'
+
+	try {
+		// Znajdź ten zestaw w Firebase po nazwie nadrzędnej
+		const snapshot = await db.ref('mealDatabase').orderByChild('name').equalTo(gotowiecName).once('value')
+		const data = snapshot.val()
+
+		if (data) {
+			const firebaseKey = Object.keys(data)[0]
+			// Usuń tylko to konkretne pod-danie w bazie danych
+			await db.ref(`mealDatabase/${firebaseKey}/gotowiecData/${subKey}`).remove()
+			alert('Danie zostało usunięte z zestawu!')
+		}
+	} catch (error) {
+		console.error('Błąd podczas usuwania pod-dania:', error)
+		alert('Nie udało się zapisać zmian w bazie.')
+	}
+}
+
+function openEditGotowiecNameModal(card) {
+	const currentName = card.getAttribute('data-name') // Pobiera czystą nazwę z Firebase
+	const modalOverlay = document.getElementById('modalOverlay')
+	const dbForm = document.getElementById('addToDatabaseForm')
+	const nameInput = document.getElementById('mealNameInput')
+	const categorySelect = document.getElementById('db-category-select')
+
+	if (!modalOverlay || !dbForm || !nameInput) return
+
+	// 1. Wpisz czystą nazwę do inputa
+	nameInput.value = currentName
+	nameInput.placeholder = 'Wpisz nową nazwę zestawu...'
+
+	// 2. Ukryj wybór kategorii oraz jej etykietę (label)
+	if (categorySelect) {
+		categorySelect.style.display = 'none'
+		const label = categorySelect.closest('label') || categorySelect.previousElementSibling
+		if (label && (label.tagName === 'LABEL' || label.classList.contains('form-group'))) {
+			label.style.display = 'none'
+		}
+	}
+
+	// 3. Ukryj sekcje składników i pod-dań
+	const singleFields = document.getElementById('singleMealFields')
+	const gotowiecFields = document.getElementById('gotowiecFields')
+	if (singleFields) singleFields.style.display = 'none'
+	if (gotowiecFields) gotowiecFields.style.display = 'none'
+
+	// 4. Ustaw flagi edycji nazwy na formularzu
+	dbForm.setAttribute('data-mode', 'edit-gotowiec-name')
+	dbForm.setAttribute('data-old-name', currentName)
+
+	// 5. Otwórz modal
+	modalOverlay.style.display = 'flex'
+}
+
+// 3. Szybka edycja pojedynczego dania bezpośrednio w zestawie
+async function editSubMeal(button) {
+	const parentGotowiecCard = button.closest('.meal-card:not(.sub-card)')
+	const subCard = button.closest('.sub-card')
+
+	const gotowiecName = parentGotowiecCard.getAttribute('data-name')
+	const subKey = subCard.getAttribute('data-sub-key') // np. 'breakfast'
+
+	// Pobieramy aktualne dane tego pod-dania z atrybutu nadrzędnego
+	const dataStr = parentGotowiecCard.getAttribute('data-gotowiec-data')
+	const parsedData = JSON.parse(dataStr || '{}')
+	const currentSubMeal = parsedData[subKey] || {}
+
+	// DOPASOWANE ID: Celujemy dokładnie w Twoje elementy z HTML
+	const modalOverlay = document.getElementById('modalOverlay')
+	const dbForm = document.getElementById('addToDatabaseForm')
+	const nameInput = document.getElementById('mealNameInput')
+	const ingredientsInput = document.getElementById('ingredientsInput')
+	const recipeInput = document.getElementById('recipeInput')
+
+	if (!modalOverlay || !dbForm || !ingredientsInput || !recipeInput) {
+		console.error('Nie znaleziono elementów modalu w DOM. Sprawdź ich ID.')
+		return
+	}
+
+	// 1. Wypełniamy pola modalu danymi pod-dania
+	if (nameInput) nameInput.value = currentSubMeal.name || ''
+	ingredientsInput.value = currentSubMeal.ingredients || ''
+	recipeInput.value = currentSubMeal.recipe || ''
+
+	// 2. Przełączamy widoki wewnątrz modalu (chcemy widzieć tylko pola pojedynczego dania)
+	const singleFields = document.getElementById('singleMealFields')
+	const gotowiecFields = document.getElementById('gotowiecFields')
+	if (singleFields) singleFields.style.display = 'flex'
+	if (gotowiecFields) gotowiecFields.style.display = 'none'
+
+	// 3. Ustawiamy flagi bezpośrednio na FORMULARZU zamiast na przycisku
+	dbForm.setAttribute('data-mode', 'edit-sub-meal')
+	dbForm.setAttribute('data-parent-name', gotowiecName)
+	dbForm.setAttribute('data-sub-key', subKey)
+
+	// 4. Otwieramy modal
+	modalOverlay.style.display = 'flex'
+}
+
+async function saveSubMealFromModal(parentName, subKey, newName, newIngredients, newRecipe) {
+	try {
+		const snapshot = await db.ref('mealDatabase').orderByChild('name').equalTo(parentName).once('value')
+		const data = snapshot.val()
+
+		if (data) {
+			const firebaseKey = Object.keys(data)[0]
+			const updatedSubObject = {
+				name: newName || 'Nieokreślone',
+				ingredients: newIngredients,
+				recipe: newRecipe,
+			}
+
+			// Nadpisujemy dokładnie to jedno pod-danie wewnątrz struktury gotowca
+			await db.ref(`mealDatabase/${firebaseKey}/gotowiecData/${subKey}`).set(updatedSubObject)
+
+			// Czyszczenie flag z przycisku, żeby nie psuć kolejnych akcji
+			const saveBtn = document.getElementById('save-meal-btn')
+			if (saveBtn) {
+				saveBtn.removeAttribute('data-mode')
+				saveBtn.removeAttribute('data-parent-name')
+				saveBtn.removeAttribute('data-sub-key')
+			}
+
+			// Czyszczenie pól i zamykanie okna (tak jak przy zwykłym dodawaniu)
+			document.getElementById('addToDatabaseForm').reset()
+			document.getElementById('modalOverlay').style.display = 'none'
+			toggleFormFields()
+
+			alert('Danie w zestawie zostało pomyślnie zaktualizowane!')
+		}
+	} catch (error) {
+		console.error('Błąd podczas zapisu zaktualizowanego sub-dania:', error)
+		alert('Wystąpił błąd podczas zapisu zmian do bazy danych.')
+	}
+}
+
 // --- LOGIKA TABELI ---
 
 // Zmienne pomocnicze do przechowywania danych aktualnie wybranego posiłku
 let currentMealData = null // Tu ląduje danie "w zawieszeniu"
 
+// Obsługa wrzucania zestawu do planu
+function openGotowiecModal(name, elementOrData) {
+	let gotowiecData = {}
+
+	// Bezpieczne wyciąganie danych niezależnie od tego, czy przekazano obiekt, string czy element DOM
+	if (typeof elementOrData === 'string') {
+		gotowiecData = JSON.parse(elementOrData)
+	} else if (elementOrData && typeof elementOrData.getAttribute === 'function') {
+		// 1. Najpierw sprawdź, czy sam przycisk ma dane (tak będzie w pickerze)
+		let dataStr = elementOrData.getAttribute('data-gotowiec-data')
+		// 2. Jeśli nie ma, poszukaj nadrzędnej karty .meal-card (tak jest na głównej liście)
+		if (!dataStr) {
+			const card = elementOrData.closest('.meal-card')
+			if (card) dataStr = card.getAttribute('data-gotowiec-data')
+		}
+		gotowiecData = JSON.parse(dataStr || '{}')
+	} else if (elementOrData && typeof elementOrData === 'object') {
+		gotowiecData = elementOrData
+	}
+
+	currentMealData = {
+		category: 'gotowiec',
+		name: name,
+		gotowiecData: gotowiecData,
+	}
+
+	const modalTitle = document.querySelector('#meal-modal h3')
+	if (modalTitle) modalTitle.innerText = `Dodaj zestaw: ${name}`
+
+	const mealModal = document.getElementById('meal-modal')
+	if (!mealModal) return
+
+	const innerCatSelect = mealModal.querySelectorAll('select')[1]
+	const innerCatLabel = mealModal.querySelectorAll('label')[1]
+
+	if (innerCatSelect) innerCatSelect.style.display = 'none'
+	if (innerCatLabel) innerCatLabel.style.display = 'none'
+
+	// === BONUS: Automatyczne ustawianie dnia w modalu ===
+	const daySelect = document.getElementById('modal-day-select')
+	if (daySelect && window.clickedTableDayIndex !== undefined) {
+		daySelect.value = window.clickedTableDayIndex
+	}
+	// =====================================================
+
+	mealModal.style.display = 'flex'
+}
+
 function openMealModal(name, ingredients, recipe) {
-	// Dodano recipe
-	// Zapamiętujemy komplet danych, w tym przepis
 	currentMealData = {
 		name: name,
 		ingredients: ingredients,
-		recipe: recipe || '', // Zabezpieczenie przed brakiem danych
+		recipe: recipe || '',
 	}
 
 	const modalTitle = document.querySelector('#meal-modal h3')
 	if (modalTitle) modalTitle.innerText = `Dodaj: ${name}`
+
+	const mealModal = document.getElementById('meal-modal')
+	const innerCatSelect = mealModal.querySelectorAll('select')[1]
+	const innerCatLabel = mealModal.querySelectorAll('label')[1]
+
+	if (innerCatSelect) innerCatSelect.style.display = 'block'
+	if (innerCatLabel) innerCatLabel.style.display = 'block'
+
+	const daySelect = document.getElementById('modal-day-select')
+	if (daySelect && window.clickedTableDayIndex !== undefined) {
+		daySelect.value = window.clickedTableDayIndex
+	}
 
 	document.getElementById('meal-modal').style.display = 'flex'
 }
 
 function handleModalSave(event) {
 	if (event) event.preventDefault()
-
-	// Szukamy elementów konkretnie wewnątrz diva #meal-modal
 	const modal = document.getElementById('meal-modal')
 	const daySelect = modal.querySelector('#modal-day-select')
-	const categorySelect = modal.querySelector('#modal-category-select')
+	const dayIndex = parseInt(daySelect.value)
 
 	if (!currentMealData) return
 
-	const dayIndex = parseInt(daySelect.value)
-	const selectedCategory = categorySelect.value
-	const row = document.querySelector(`#mealTable tr[data-category="${selectedCategory}"]`)
+	if (currentMealData.category === 'gotowiec') {
+		const data = currentMealData.gotowiecData
 
-	if (!row) {
-		return
-	}
+		// POPRAWIONE KLUCZE: Muszą być takie same jak przy zapisie do bazy!
+		const mapping = [
+			{ cat: 'śniadanie', key: 'breakfast' },
+			{ cat: 'przekąska', key: 'snack' },
+			{ cat: 'obiad', key: 'lunch' },
+			{ cat: 'kolacja', key: 'dinner' },
+		]
 
-	let cell
-	// Logika dla Twojej tabeli (Obiad/Kolacja mają inne komórki przez colspan)
-	if (selectedCategory === 'obiad' || selectedCategory === 'kolacja') {
-		if (dayIndex === 1 || dayIndex === 2) cell = row.cells[1]
-		else if (dayIndex === 3 || dayIndex === 4) cell = row.cells[2]
-		else if (dayIndex === 5) cell = row.cells[3]
-		else if (dayIndex === 6 || dayIndex === 7) cell = row.cells[4]
-	} else {
-		cell = row.cells[dayIndex]
-	}
-
-	if (cell) {
-		// KLUCZOWE: Dodajemy currentMealData.recipe jako 4-ty argument
-		fillTableCell(cell, currentMealData.name, currentMealData.ingredients, currentMealData.recipe)
+		mapping.forEach(item => {
+			const mealInfo = data[item.key]
+			if (mealInfo && mealInfo.name) {
+				const row = document.querySelector(`#mealTable tr[data-category="${item.cat}"]`)
+				if (row) {
+					let cell
+					if (item.cat === 'obiad') {
+						if (dayIndex === 1 || dayIndex === 2) cell = row.cells[1]
+						else if (dayIndex === 3 || dayIndex === 4) cell = row.cells[2]
+						else if (dayIndex === 5) cell = row.cells[3]
+						else if (dayIndex === 6 || dayIndex === 7) cell = row.cells[4]
+					} else {
+						// Śniadanie, Przekąska i Kolacja pobierają komórkę wprost z indeksu dnia
+						cell = row.cells[dayIndex]
+					}
+					if (cell) {
+						fillTableCell(cell, mealInfo.name, mealInfo.ingredients, mealInfo.recipe)
+					}
+				}
+			}
+		})
 
 		if (typeof saveTableToLocalStorage === 'function') saveTableToLocalStorage()
 		closeModalBnt()
+	} else {
+		const categorySelect = modal.querySelectorAll('select')[1]
+		const selectedCategory = categorySelect.value
+		const row = document.querySelector(`#mealTable tr[data-category="${selectedCategory}"]`)
+
+		if (!row) return
+
+		let cell
+		if (selectedCategory === 'obiad') {
+			if (dayIndex === 1 || dayIndex === 2) cell = row.cells[1]
+			else if (dayIndex === 3 || dayIndex === 4) cell = row.cells[2]
+			else if (dayIndex === 5) cell = row.cells[3]
+			else if (dayIndex === 6 || dayIndex === 7) cell = row.cells[4]
+		} else {
+			cell = row.cells[dayIndex]
+		}
+
+		if (cell) {
+			fillTableCell(cell, currentMealData.name, currentMealData.ingredients, currentMealData.recipe)
+			if (typeof saveTableToLocalStorage === 'function') saveTableToLocalStorage()
+			closeModalBnt()
+		}
 	}
 }
 
@@ -422,9 +986,9 @@ function fillTableCell(cell, name, ingredients, recipe = '') {
 	cell.style.verticalAlign = 'center'
 	cell.style.padding = '23px 5px 5px 5px'
 
-	// Zabezpieczamy tekst przed cudzysłowami
-	const safeIng = ingredients.replace(/"/g, '&quot;')
-	const safeRec = recipe.replace(/"/g, '&quot;')
+	// Zabezpieczenie przed wartościami undefined/null oraz cudzysłowami
+	const safeIng = (ingredients || '').replace(/"/g, '&quot;')
+	const safeRec = (recipe || '').replace(/"/g, '&quot;')
 
 	cell.innerHTML = `
         <div class="meal-container" data-ingredients="${safeIng}" data-recipe="${safeRec}">
@@ -482,9 +1046,44 @@ function clearCell(btn) {
 
 // --- MODAL FORMULARZA ---
 
+// Funkcja przełączająca widok pól formularza (wywoływana przy zmianie selecta)
+function toggleFormFields() {
+	const categorySelect = document.getElementById('db-category-select')
+	const singleMealFields = document.getElementById('singleMealFields')
+	const gotowiecFields = document.getElementById('gotowiecFields')
+	const nameInput = document.getElementById('mealNameInput')
+
+	// Zabezpieczenie na wypadek, gdyby elementy jeszcze nie istniały w DOM
+	if (!categorySelect || !singleMealFields || !gotowiecFields) return
+
+	// Przywracanie widoczności selektora kategorii po edycji nazwy
+	categorySelect.style.display = 'block'
+	const label = categorySelect.closest('label') || categorySelect.previousElementSibling
+	if (label && (label.tagName === 'LABEL' || label.classList.contains('form-group'))) {
+		label.style.display = 'block'
+	}
+
+	if (categorySelect.value === 'gotowiec') {
+		// Ukryj pojedyncze danie, pokaż gotowca
+		singleMealFields.style.display = 'none'
+		gotowiecFields.style.display = 'flex'
+
+		// Dynamiczna walidacja: w zestawie główna nazwa to np. "Zestaw 2000kcal"
+		document.getElementById('mealNameInput').placeholder = 'Wpisz nazwę zestawu (np. Dzień 1)...'
+	} else {
+		// Pokaż pojedyncze danie, ukryj gotowca
+		singleMealFields.style.display = 'flex'
+		gotowiecFields.style.display = 'none'
+
+		document.getElementById('mealNameInput').placeholder = 'Wpisz nazwę...'
+	}
+}
+
 openBtn.onclick = () => {
 	editingCard = null
 	modal.style.display = 'flex'
+	document.getElementById('modal-category-select').value = 'śniadanie'
+	toggleFormFields()
 }
 
 cancelBtn.onclick = () => {
@@ -495,54 +1094,120 @@ cancelBtn.onclick = () => {
 function closeModal() {
 	modal.style.display = 'none'
 	mealForm.reset()
+	document.getElementById('modal-category-select').value = 'śniadanie'
+	toggleFormFields()
 	editingCard = null
+	const saveBtn = document.getElementById('save-meal-btn')
+	if (saveBtn) saveBtn.removeAttribute('data-mode')
 }
 
 function editMeal(card) {
-	editingCard = card
-	// Kluczowe: pobieramy aktualną nazwę zapisaną w karcie
-	const currentNameOnCard = card.getAttribute('data-name')
-	editingCard.originalName = currentNameOnCard
+	if (!card) return
 
-	document.getElementById('modal-category-select').value = card.getAttribute('data-category')
-	document.getElementById('mealNameInput').value = currentNameOnCard
-	document.getElementById('ingredientsInput').value = card.getAttribute('data-ingredients')
-	document.getElementById('recipeInput').value = card.getAttribute('data-recipe')
+	// 1. Pobranie aktualnych danych z atrybutów HTML karty dania
+	const currentName = card.getAttribute('data-name') || ''
+	const currentCategory = card.getAttribute('data-category') || ''
+	const currentIngredients = card.getAttribute('data-ingredients') || ''
+	const currentRecipe = card.getAttribute('data-recipe') || ''
 
-	document.getElementById('modalOverlay').style.display = 'flex'
+	// 2. Pobranie wszystkich potrzebnych elementów modalu z DOM
+	const modalOverlay = document.getElementById('modalOverlay')
+	const dbForm = document.getElementById('addToDatabaseForm')
+	const nameInput = document.getElementById('mealNameInput')
+	const categorySelect = document.getElementById('db-category-select')
+	const ingredientsInput = document.getElementById('ingredientsInput')
+	const recipeInput = document.getElementById('recipeInput')
+
+	// Walidacja bezpieczeństwa – upewniamy się, że struktura modalu istnieje
+	if (!modalOverlay || !dbForm || !nameInput || !categorySelect) {
+		console.error('Błąd: Nie znaleziono kluczowych elementów modalu w DOM. Sprawdź ID w HTML.')
+		return
+	}
+
+	// 3. Wstrzyknięcie dotychczasowych danych dania do pól formularza
+	nameInput.value = currentName
+	categorySelect.value = currentCategory
+
+	if (ingredientsInput) ingredientsInput.value = currentIngredients
+	if (recipeInput) recipeInput.value = currentRecipe
+
+	// 4. Przywrócenie widoczności selecta kategorii i jego labela
+	// (na wypadek, gdyby funkcja openEditGotowiecNameModal je wcześniej ukryła)
+	categorySelect.style.display = 'block'
+	const label = categorySelect.closest('label') || categorySelect.previousElementSibling
+	if (label && (label.tagName === 'LABEL' || label.classList.contains('form-group'))) {
+		label.style.display = 'block'
+	}
+
+	// 5. Odświeżenie widoczności pól (pokaże pola tekstowe, ukryje sekcje gotowca)
+	toggleFormFields()
+
+	// 6. Ustawienie kluczowych flag edycji na FORMULARZU
+	// Dzięki temu handleDatabaseFormSubmit wie, że ma zaktualizować istniejący wpis zamiast robić .push()
+	dbForm.setAttribute('data-mode', 'edit-meal')
+	dbForm.setAttribute('data-old-name', currentName)
+
+	// 7. Wyświetlenie modalu użytkownikowi
+	modalOverlay.style.display = 'flex'
 }
 
 function deleteMeal(card) {
 	const mealName = card.querySelector('.card-title')?.innerText
 
+	// Sprawdzamy, czy usuwana karta to gotowiec i wyciągamy nazwy wszystkich jego potraw składowych
+	const gotowiecDataStr = card.getAttribute('data-gotowiec-data')
+	let subMealNames = []
+
+	if (gotowiecDataStr) {
+		try {
+			const gotowiecData = JSON.parse(gotowiecDataStr)
+			subMealNames = Object.values(gotowiecData)
+				.map(sm => sm.name)
+				.filter(Boolean)
+		} catch (e) {
+			console.error('Błąd parsowania danych gotowca przy usuwaniu:', e)
+		}
+	}
+
 	if (confirm(`Czy na pewno usunąć "${mealName}" z bazy? Zostanie ono również usunięte z aktualnego jadłospisu.`)) {
 		// 1. Usuwamy kartę z widoku bazy
 		card.remove()
 
-		// 2. Szukamy tego posiłku w tabeli jadłospisu i go usuwamy
+		// 2. Szukamy potraw w tabeli jadłospisu i je czyścimy
 		const allPlannedMeals = document.querySelectorAll('.meal-container')
 		allPlannedMeals.forEach(container => {
 			const plannedName = container.querySelector('.meal-name-text')?.innerText
 
-			if (plannedName === mealName) {
+			// WARUNEK: Czyść, jeśli nazwa w tabeli to nazwa dania, nazwa zestawu
+			// LUB jeśli znajduje się na liście dań składowych usuwanego zestawu
+			if (plannedName === mealName || subMealNames.includes(plannedName)) {
 				const cell = container.closest('td')
 				if (cell) {
-					setEmptyCell(cell) // Używamy Twojej funkcji do resetowania komórki
+					setEmptyCell(cell)
 				}
 			}
 		})
 
-		// 3. Zapisujemy zmiany w obu magazynach danych
-		saveDatabaseToLocalStorage()
-		saveTableToLocalStorage() // Zakładam, że tak nazywa się Twoja funkcja zapisu tabeli
-		updateAllCounts()
+		// 3. Zapisujemy zmiany
+		if (typeof saveDatabaseToLocalStorage === 'function') saveDatabaseToLocalStorage()
+		if (typeof saveTableToLocalStorage === 'function') saveTableToLocalStorage()
+		if (typeof updateAllCounts === 'function') updateAllCounts()
 	}
 }
 
-function togglePreview(btn) {
-	const p = btn.closest('.meal-card').querySelector('.ingredients-preview')
-	p.classList.toggle('active')
-	btn.innerText = p.classList.contains('active') ? 'Ukryj' : 'Podgląd'
+function togglePreview(button) {
+	const card = button.closest('.meal-card')
+	const preview = card.querySelector('.ingredients-preview')
+	if (preview) {
+		const isActive = preview.classList.toggle('active')
+
+		if (isActive) {
+			button.innerText = 'Ukryj'
+		} else {
+			// Jeśli to gotowiec, przywróć "Podgląd Składu", w innym wypadku zwykły "Podgląd"
+			button.innerText = card.getAttribute('data-category') === 'gotowiec' ? 'Podgląd Składu' : 'Podgląd'
+		}
+	}
 }
 
 let currentTargetCell = null // Zmienna pomocnicza, by wiedzieć gdzie dodać danie
@@ -564,6 +1229,25 @@ function openMealPicker(btn) {
 
 	const savedDatabase = globalMealDatabase
 
+	const td = btn.closest('td')
+	const row = btn.closest('tr')
+	if (td && row) {
+		const category = row.getAttribute('data-category')
+		let dayIndex = td.cellIndex // Pobiera numer kolumny (1-7)
+
+		// Korekta dla scalonego obwodu obiadowego
+		if (category === 'obiad') {
+			if (dayIndex === 1)
+				dayIndex = 1 // Pon/Wto -> ustawiamy Poniedziałek
+			else if (dayIndex === 2)
+				dayIndex = 3 // Śro/Czw -> ustawiamy Środę
+			else if (dayIndex === 3)
+				dayIndex = 5 // Piątek -> Piątek
+			else if (dayIndex === 4) dayIndex = 6 // Sob/Nie -> ustawiamy Sobotę
+		}
+		window.clickedTableDayIndex = dayIndex // Zapisujemy globalnie
+	}
+
 	// 1. Tworzymy pasek filtrów (jeśli jeszcze go nie ma)
 	let filterBar = document.getElementById('modalFilterBar')
 	if (!filterBar) {
@@ -575,10 +1259,9 @@ function openMealPicker(btn) {
 
 	// 2. Funkcja renderująca listę
 	const renderList = (filterText = '', activeCat = '') => {
-		// Domyślnie activeCat jest pusty ("wszystkie")
 		listContainer.innerHTML = ''
 
-		const cats = ['śniadanie', 'obiad', 'kolacja', 'przekąska', 'wszystkie']
+		const cats = ['śniadanie', 'obiad', 'kolacja', 'przekąska', 'gotowiec', 'wszystkie']
 		filterBar.innerHTML = ''
 
 		cats.forEach(c => {
@@ -588,10 +1271,7 @@ function openMealPicker(btn) {
 			const b = document.createElement('button')
 			b.innerText = c.toUpperCase()
 			b.style.cssText = `padding:5px 12px; font-size:10px; cursor:pointer; border-radius:15px; border:1px solid #ddd; 
-                               transition: all 0.2s;
-                               background:${isActive ? '#4caf50' : '#fff'};
-                               color:${isActive ? '#fff' : '#333'}`
-
+                               transition: all 0.2s; background:${isActive ? '#4caf50' : '#fff'}; color:${isActive ? '#fff' : '#333'}`
 			b.onclick = () => renderList(searchInput.value, isAll ? '' : c)
 			filterBar.appendChild(b)
 		})
@@ -609,16 +1289,55 @@ function openMealPicker(btn) {
 
 		filtered.forEach(meal => {
 			const item = document.createElement('div')
-			const mealRecipe = meal.recipe || ''
 			item.className = 'meal-picker-item'
 			item.innerHTML = `
                 <span><strong>${meal.name}</strong></span>
                 <small style="background:#eee; padding:2px 6px; border-radius:4px; font-size:10px;">${meal.category}</small>
             `
 			item.onclick = () => {
-				const mealRecipe = meal.recipe || '' // Pobieramy przepis z obiektu meal
-				fillTableCell(currentTargetCell, meal.name, meal.ingredients, mealRecipe)
-				saveTableToLocalStorage()
+				if (meal.category === 'gotowiec') {
+					// POPRAWKA: Zamiast zawodnego cellId, bierzemy gotowy, przeliczony wyżej indeks dnia
+					const dayNum = window.clickedTableDayIndex
+
+					if (dayNum !== undefined && !isNaN(dayNum)) {
+						const data = meal.gotowiecData || {}
+
+						// POPRAWKA: Angielskie klucze, dokładnie takie same jak w Firebase
+						const mapping = [
+							{ cat: 'śniadanie', key: 'breakfast' },
+							{ cat: 'przekąska', key: 'snack' },
+							{ cat: 'obiad', key: 'lunch' },
+							{ cat: 'kolacja', key: 'dinner' },
+						]
+
+						mapping.forEach(mItem => {
+							const mealInfo = data[mItem.key]
+							if (mealInfo && mealInfo.name) {
+								const row = document.querySelector(`#mealTable tr[data-category="${mItem.cat}"]`)
+								if (row) {
+									let cell
+									if (mItem.cat === 'obiad') {
+										if (dayNum === 1 || dayNum === 2) cell = row.cells[1]
+										else if (dayNum === 3 || dayNum === 4) cell = row.cells[2]
+										else if (dayNum === 5) cell = row.cells[3]
+										else if (dayNum === 6 || dayNum === 7) cell = row.cells[4]
+									} else {
+										cell = row.cells[dayNum]
+									}
+									if (cell) {
+										fillTableCell(cell, mealInfo.name, mealInfo.ingredients, mealInfo.recipe)
+									}
+								}
+							}
+						})
+						saveTableToLocalStorage()
+					}
+				} else {
+					// Standardowe pojedyncze danie
+					const mealRecipe = meal.recipe || ''
+					fillTableCell(currentTargetCell, meal.name, meal.ingredients, mealRecipe)
+					saveTableToLocalStorage()
+				}
 				closeMealPicker()
 			}
 			listContainer.appendChild(item)
@@ -626,7 +1345,6 @@ function openMealPicker(btn) {
 	}
 
 	searchInput.value = ''
-	// Przy wyszukiwaniu sprawdzamy, który przycisk jest aktualnie zielony, by zachować filtr kategorii
 	searchInput.oninput = e => {
 		const activeBtn = Array.from(filterBar.querySelectorAll('button')).find(
 			b => b.style.backgroundColor === 'rgb(76, 175, 80)',
@@ -635,7 +1353,6 @@ function openMealPicker(btn) {
 		renderList(e.target.value, currentCat)
 	}
 
-	// WYWOŁANIE: Zawsze zaczynamy od pustego filtra (opcja "wszystkie")
 	renderList('', '')
 	modalPicker.style.display = 'flex'
 }
@@ -661,21 +1378,26 @@ document.addEventListener('DOMContentLoaded', () => {
 	}
 
 	// --- PARSER ---
-	function parseIngredient(text) {
-		text = text.toLowerCase().trim()
-		const match = text.match(/^(\d+[\.,]?\d*)\s*(.*)/)
-		let qty = 1
-		let rest = text
+	function parseIngredient(itemStr) {
+		// Regex dopasowuje: nazwę, potem liczbę (całkowitą lub z przecinkiem/kropką) oraz jednostkę (g, ml, szt, szt.) na samym końcu
+		const match = itemStr.match(/^(.*?)\s*(\d+[\.,]?\d*)\s*(g|ml|szt\.?|szt)?$/i)
 
 		if (match) {
-			qty = parseFloat(match[1].replace(',', '.'))
-			rest = match[2].trim()
+			const name = match[1].trim()
+			const qty = parseFloat(match[2].replace(',', '.'))
+			let unit = (match[3] || '').toLowerCase().replace('.', '') // Standaryzacja: "szt." -> "szt"
+
+			// Jeśli użytkownik nie podał jednostki (np. "cebula 2"), domyślnie ustawiamy "szt"
+			if (!unit) unit = 'szt'
+
+			// Kompatybilność wsteczna: stary chleb w kromkach/sztukach odpalał logikę bochenków
+			const isBread = name.toLowerCase() === 'chleb' && unit === 'szt'
+
+			return { name, qty, unit, isBread }
 		}
 
-		if (rest.includes('chleb') || rest.includes('kromk')) {
-			return { qty, isBread: true, name: 'chleb' }
-		}
-		return { qty, isBread: false, name: rest }
+		// Awaryjny return, jeśli linijka nie ma podanej ilości (np. sam wpis "sól")
+		return { name: itemStr.trim(), qty: 1, unit: 'szt', isBread: false }
 	}
 
 	// --- OBSŁUGA DRAG & DROP ---
@@ -731,30 +1453,40 @@ document.addEventListener('DOMContentLoaded', () => {
 				.filter(Boolean)
 
 			items.forEach(item => {
-				const { qty, isBread, name } = parseIngredient(item)
-				const key = isBread ? 'BREAD_TOTAL' : name
-				summary[key] = (summary[key] || 0) + qty
+				const { qty, unit, isBread, name } = parseIngredient(item)
+
+				const key = isBread ? 'BREAD_TOTAL' : `${name.toLowerCase()}|||${unit}`
+
+				if (!summary[key]) {
+					summary[key] = {
+						displayName: name,
+						qty: 0,
+						unit: unit,
+						isBread: isBread,
+					}
+				}
+				summary[key].qty += qty
 			})
 		})
 
 		if (Object.keys(summary).length === 0) {
-			shoppingSection.style.display = 'none' // Ukryj sekcję, jeśli była widoczna
+			shoppingSection.style.display = 'none'
 			alert('Twoja lista jest pusta! Dodaj składniki do posiłków, aby wygenerować listę zakupów.')
-			return // Przerwij wykonywanie funkcji
+			return
 		}
 
 		const list = []
 		Object.keys(summary).forEach(key => {
-			let amount = Math.round(summary[key] * 100) / 100
+			const itemData = summary[key]
+			let amount = Math.round(itemData.qty * 100) / 100
 			let htmlContent = ''
-			let sortKey = '' // Dodajemy zmienną na klucz sortowania
+			let sortKey = ''
 
 			if (key === 'BREAD_TOTAL') {
 				const totalSlices = Math.round(amount)
 				const loaves = Math.floor(totalSlices / 20)
 				const remainingSlices = totalSlices % 20
 
-				// Ustawiamy klucz sortowania na "chleb", żeby był pod literą C
 				sortKey = 'chleb'
 
 				if (loaves > 0) {
@@ -767,29 +1499,41 @@ document.addEventListener('DOMContentLoaded', () => {
 					htmlContent = `chleb (kromki) <strong>${remainingSlices}</strong>`
 				}
 			} else {
-				// Dla reszty produktów klucz to po prostu ich nazwa
-				sortKey = key
-				htmlContent = `${key} <strong>${amount}</strong>`
+				sortKey = itemData.displayName.toLowerCase()
+
+				// --- LOGIKA BEZ SPACJI PRZED JEDNOSTKAMI ---
+				if (itemData.unit === 'g' && amount >= 1000) {
+					const kg = Math.floor(amount / 1000)
+					const g = Math.round(amount % 1000)
+					const restG = g > 0 ? ` ${g}g` : '' // Spacja tylko jako separator między kg a g
+					htmlContent = `${itemData.displayName} <strong>${kg}kg${restG}</strong>`
+				} else if (itemData.unit === 'ml' && amount >= 1000) {
+					const l = Math.floor(amount / 1000)
+					const ml = Math.round(amount % 1000)
+					const restMl = ml > 0 ? ` ${ml}ml` : '' // Spacja tylko jako separator między l a ml
+					htmlContent = `${itemData.displayName} <strong>${l}l${restMl}</strong>`
+				} else {
+					// Format bez spacji dla wartości poniżej 1000 oraz sztuk (np. 113g, 2szt)
+					htmlContent = `${itemData.displayName} <strong>${amount}${itemData.unit}</strong>`
+				}
 			}
 
 			list.push({
 				label: htmlContent,
-				sortKey: sortKey, // Używamy poprawnego klucza do sortowania
+				sortKey: sortKey,
 			})
 		})
 
 		// --- SORTOWANIE ALFABETYCZNE ---
-
 		shoppingContainer.innerHTML = ''
 		list.sort((a, b) => a.sortKey.localeCompare(b.sortKey, 'pl'))
 
 		list.forEach(item => {
-			const el = document.createElement('div') // Zmieniono na div dla lepszej stabilności Drag&Drop
+			const el = document.createElement('div')
 			el.className = 'shopping-item'
-			el.draggable = true // Kluczowy atrybut
+			el.draggable = true
 			el.innerHTML = `<input type="checkbox"> <span>${item.label}</span>`
 
-			// Podpięcie zdarzeń
 			el.addEventListener('dragstart', handleDragStart)
 			el.addEventListener('dragenter', handleDragEnter)
 			el.addEventListener('dragover', handleDragOver)
@@ -802,21 +1546,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
 		shoppingSection.style.display = 'block'
 	}
-})
 
-// Znajdujemy nowy przycisk
-const refreshListBtn = document.getElementById('refreshListBtn')
-
-// Przypisujemy mu tę samą funkcję, którą ma główny przycisk generowania
-if (refreshListBtn) {
-	refreshListBtn.onclick = () => {
-		// Wywołujemy istniejącą logikę generowania (tę z alertem i sumowaniem)
-		generateListBtn.click()
-
-		// Opcjonalnie: mała informacja w konsoli lub wizualna, że odświeżono
-		console.log('Lista zakupów została zaktualizowana!')
+	// Przycisk odświeżania listy
+	const refreshListBtn = document.getElementById('refreshListBtn')
+	if (refreshListBtn) {
+		refreshListBtn.onclick = () => {
+			generateListBtn.click()
+		}
 	}
-}
+})
 
 function closeShoppingList() {
 	const shoppingSection = document.getElementById('shoppingListSection')
