@@ -52,10 +52,13 @@
                     </tr>
                     <tr data-category="obiad">
                         <td class="row-title">Obiad</td>
-                        <td id="ob-1" colspan="2"></td>
-                        <td id="ob-3" colspan="2"></td>
+                        <td id="ob-1"></td>
+                        <td id="ob-2"></td>
+                        <td id="ob-3"></td>
+                        <td id="ob-4"></td>
                         <td id="ob-5"></td>
-                        <td id="ob-6" colspan="2"></td>
+                        <td id="ob-6"></td>
+                        <td id="ob-7"></td>
                     </tr>
                     <tr data-category="kolacja">
                         <td class="row-title">Kolacja</td>
@@ -339,12 +342,12 @@
 
         <div id="settings-menu">
             <h3>Ustawienia</h3>
-            <button id="theme-toggle" onclick="toggleTheme()">🌙 Tryb Ciemny</button>
+            <button id="theme-toggle" onclick="toggleTheme(); toggleSettingsMenu()">🌙 Tryb Ciemny</button>
 
             <hr>
 
-            <button onclick="exportDatabase()" class="menu-btn">📤 Eksportuj Bazę (.JSON)</button>
-            <button onclick="triggerImport()" class="menu-btn">📥 Importuj Bazę</button>
+            <button onclick="exportDatabase(); toggleSettingsMenu()" class="menu-btn">📤 Eksportuj Bazę (.JSON)</button>
+            <button onclick="triggerImport(); toggleSettingsMenu()" class="menu-btn">📥 Importuj Bazę</button>
 
             <hr>
 
