@@ -461,23 +461,24 @@ mealForm.onsubmit = e => {
 	let gotowiecData = null
 
 	if (category === 'gotowiec') {
+		// KLUCZE ZSYNCHRONIZOWANE Z UPDATE_MEAL_CARD I FIREBASE
 		gotowiecData = {
-			sn: {
+			breakfast: {
 				name: document.getElementById('gotowiec-sn-name').value,
 				ingredients: document.getElementById('gotowiec-sn-ing').value,
 				recipe: document.getElementById('gotowiec-sn-rec').value,
 			},
-			pr: {
+			snack: {
 				name: document.getElementById('gotowiec-pr-name').value,
 				ingredients: document.getElementById('gotowiec-pr-ing').value,
 				recipe: document.getElementById('gotowiec-pr-rec').value,
 			},
-			ob: {
+			lunch: {
 				name: document.getElementById('gotowiec-ob-name').value,
 				ingredients: document.getElementById('gotowiec-ob-ing').value,
 				recipe: document.getElementById('gotowiec-ob-rec').value,
 			},
-			ko: {
+			dinner: {
 				name: document.getElementById('gotowiec-ko-name').value,
 				ingredients: document.getElementById('gotowiec-ko-ing').value,
 				recipe: document.getElementById('gotowiec-ko-rec').value,
@@ -547,9 +548,8 @@ function updateMealCard(card, category, name, ingredients, recipe, gotowiecData 
 		const parsedData = typeof gotowiecData === 'string' ? JSON.parse(gotowiecData) : gotowiecData || {}
 
 		let previewHtml =
-			'<div class="sub-meals-grid" style="display: flex; flex-direction: column; gap: 12px; margin-top: 10px;">'
+			'<div class="sub-meals-grid" style="display: flex; flex-direction: column; gap: 12px; margin-top: 12px;">'
 
-		// POPRAWKA: Klucze muszą dokładnie odpowiadać temu, co leci do Firebase
 		const labels = {
 			breakfast: '☀️ Śniadanie',
 			snack: '🍏 Przekąska',
@@ -564,9 +564,8 @@ function updateMealCard(card, category, name, ingredients, recipe, gotowiecData 
 				const subIng = (subMeal.ingredients || '').toString()
 				const subRec = (subMeal.recipe || '').toString()
 
-				// Generujemy niezależny mini-kafelek dla każdego pod-dania
 				previewHtml += `
-    <div class="meal-card sub-card" data-sub-key="${key}" style="border: 1px solid #eee; border-left: 5px solid #4caf50; background: #fff; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); padding: 12px; border-radius: 8px; width: 100%; margin-top: 5px;">
+    <div class="meal-card sub-card" data-sub-key="${key}">
         <div class="meal-info-container">
             <small style="color: #7f8c8d; font-weight: bold; text-transform: uppercase; font-size: 0.75em; align-self: center;">${labels[key]}</small>
             <strong class="card-title" style="display: block; color: #2c3e50; font-size: 1em; margin-top: 2px;">
@@ -603,25 +602,23 @@ function updateMealCard(card, category, name, ingredients, recipe, gotowiecData 
 		}
 		previewHtml += '</div>'
 
+		// TUTAJ: Zamieniona kolejność - przyciski główne lądują nad spisem potraw
 		card.innerHTML = `
             <div class="meal-info-container">
                 <strong class="card-title" style="display: block; color: #2c3e50; font-size: 1.1em;">
                     ${safeName}
                 </strong>
             </div>
-            <div class="card-actions">
+            
+            <div class="card-actions" style="margin-top: 8px; margin-bottom: 8px;">
                 <button onclick="openGotowiecModal('${safeName.replace(/'/g, "\\'")}', this.closest('.meal-card'))">
                     Dodaj Cały Zestaw +
                 </button>
-                <button class="btn-preview" onclick="togglePreview(this)">Podgląd Składu</button>
                 <button onclick="openEditGotowiecNameModal(this.closest('.meal-card'))" style="background: #f39c12;">Edytuj Nazwę</button>
                 <button onclick="deleteMeal(this.parentElement.parentElement)" style="background: #e74c3c;">Usuń Zestaw</button>
             </div>
-            <div class="ingredients-preview">
-                <div class="preview-section">
-                    ${previewHtml}
-                </div>
-            </div>
+
+            ${previewHtml}
         `
 	} else {
 		const safeIngredients = (ingredients || '').toString()
@@ -658,26 +655,24 @@ function updateMealCard(card, category, name, ingredients, recipe, gotowiecData 
 								}
             </div>
         `
-	}
 
-	const safeCat = category.replace('ą', 'a')
-	const targetAccordion = document.getElementById(`db-${safeCat}`)
-	if (targetAccordion) {
-		const content = targetAccordion.querySelector('.category-content')
-		if (card.parentElement !== content) content.appendChild(card)
-		updateAllCounts()
+		const safeCat = category.replace('ą', 'a')
+		const targetAccordion = document.getElementById(`db-${safeCat}`)
+		if (targetAccordion) {
+			const content = targetAccordion.querySelector('.category-content')
+			if (card.parentElement !== content) content.appendChild(card)
+			updateAllCounts()
+		}
 	}
 }
 
-// 1. Podgląd pojedynczego dania wewnątrz zestawu
+// 1. Podgląd pojedynczego dania wewnątrz zestawu (sub-card)
 function toggleSubPreview(button) {
 	const subCard = button.closest('.sub-card')
 	const preview = subCard.querySelector('.ingredients-preview')
-	if (preview) {
-		// toggle() zwraca true, jeśli klasa została dodana, lub false, jeśli została usunięta
-		const isActive = preview.classList.toggle('active')
 
-		// Zmieniamy tekst w zależności od stanu
+	if (preview) {
+		const isActive = preview.classList.toggle('active')
 		button.innerText = isActive ? 'Ukryj' : 'Podgląd'
 	}
 }
@@ -913,10 +908,10 @@ function handleModalSave(event) {
 
 	if (!currentMealData) return
 
+	// Scenariusz 1: Obsługa zestawu "gotowiec"
 	if (currentMealData.category === 'gotowiec') {
 		const data = currentMealData.gotowiecData
 
-		// POPRAWIONE KLUCZE: Muszą być takie same jak przy zapisie do bazy!
 		const mapping = [
 			{ cat: 'śniadanie', key: 'breakfast' },
 			{ cat: 'przekąska', key: 'snack' },
@@ -929,16 +924,8 @@ function handleModalSave(event) {
 			if (mealInfo && mealInfo.name) {
 				const row = document.querySelector(`#mealTable tr[data-category="${item.cat}"]`)
 				if (row) {
-					let cell
-					if (item.cat === 'obiad') {
-						if (dayIndex === 1 || dayIndex === 2) cell = row.cells[1]
-						else if (dayIndex === 3 || dayIndex === 4) cell = row.cells[2]
-						else if (dayIndex === 5) cell = row.cells[3]
-						else if (dayIndex === 6 || dayIndex === 7) cell = row.cells[4]
-					} else {
-						// Śniadanie, Przekąska i Kolacja pobierają komórkę wprost z indeksu dnia
-						cell = row.cells[dayIndex]
-					}
+					// Usunięte grupowanie dni dla obiadu – teraz każdy posiłek leci wprost pod dayIndex
+					const cell = row.cells[dayIndex]
 					if (cell) {
 						fillTableCell(cell, mealInfo.name, mealInfo.ingredients, mealInfo.recipe)
 					}
@@ -948,22 +935,17 @@ function handleModalSave(event) {
 
 		if (typeof saveTableToLocalStorage === 'function') saveTableToLocalStorage()
 		closeModalBnt()
-	} else {
+	}
+	// Scenariusz 2: Obsługa pojedynczego dania
+	else {
 		const categorySelect = modal.querySelectorAll('select')[1]
 		const selectedCategory = categorySelect.value
 		const row = document.querySelector(`#mealTable tr[data-category="${selectedCategory}"]`)
 
 		if (!row) return
 
-		let cell
-		if (selectedCategory === 'obiad') {
-			if (dayIndex === 1 || dayIndex === 2) cell = row.cells[1]
-			else if (dayIndex === 3 || dayIndex === 4) cell = row.cells[2]
-			else if (dayIndex === 5) cell = row.cells[3]
-			else if (dayIndex === 6 || dayIndex === 7) cell = row.cells[4]
-		} else {
-			cell = row.cells[dayIndex]
-		}
+		// Usunięte grupowanie dni dla obiadu – pełna unifikacja dla wszystkich kategorii
+		const cell = row.cells[dayIndex]
 
 		if (cell) {
 			fillTableCell(cell, currentMealData.name, currentMealData.ingredients, currentMealData.recipe)
@@ -1195,18 +1177,14 @@ function deleteMeal(card) {
 	}
 }
 
+// 2. Podgląd zwykłego, pojedynczego posiłku z bazy danych
 function togglePreview(button) {
 	const card = button.closest('.meal-card')
 	const preview = card.querySelector('.ingredients-preview')
+
 	if (preview) {
 		const isActive = preview.classList.toggle('active')
-
-		if (isActive) {
-			button.innerText = 'Ukryj'
-		} else {
-			// Jeśli to gotowiec, przywróć "Podgląd Składu", w innym wypadku zwykły "Podgląd"
-			button.innerText = card.getAttribute('data-category') === 'gotowiec' ? 'Podgląd Składu' : 'Podgląd'
-		}
+		button.innerText = isActive ? 'Ukryj' : 'Podgląd'
 	}
 }
 
@@ -1235,16 +1213,6 @@ function openMealPicker(btn) {
 		const category = row.getAttribute('data-category')
 		let dayIndex = td.cellIndex // Pobiera numer kolumny (1-7)
 
-		// Korekta dla scalonego obwodu obiadowego
-		if (category === 'obiad') {
-			if (dayIndex === 1)
-				dayIndex = 1 // Pon/Wto -> ustawiamy Poniedziałek
-			else if (dayIndex === 2)
-				dayIndex = 3 // Śro/Czw -> ustawiamy Środę
-			else if (dayIndex === 3)
-				dayIndex = 5 // Piątek -> Piątek
-			else if (dayIndex === 4) dayIndex = 6 // Sob/Nie -> ustawiamy Sobotę
-		}
 		window.clickedTableDayIndex = dayIndex // Zapisujemy globalnie
 	}
 
@@ -1315,18 +1283,10 @@ function openMealPicker(btn) {
 							if (mealInfo && mealInfo.name) {
 								const row = document.querySelector(`#mealTable tr[data-category="${mItem.cat}"]`)
 								if (row) {
-									let cell
-									if (mItem.cat === 'obiad') {
-										if (dayNum === 1 || dayNum === 2) cell = row.cells[1]
-										else if (dayNum === 3 || dayNum === 4) cell = row.cells[2]
-										else if (dayNum === 5) cell = row.cells[3]
-										else if (dayNum === 6 || dayNum === 7) cell = row.cells[4]
-									} else {
-										cell = row.cells[dayNum]
-									}
-									if (cell) {
-										fillTableCell(cell, mealInfo.name, mealInfo.ingredients, mealInfo.recipe)
-									}
+									cell = row.cells[dayNum]
+								}
+								if (cell) {
+									fillTableCell(cell, mealInfo.name, mealInfo.ingredients, mealInfo.recipe)
 								}
 							}
 						})
@@ -1368,6 +1328,67 @@ document.addEventListener('DOMContentLoaded', () => {
 	const shoppingContainer = document.getElementById('shoppingListContainer')
 	const shoppingSection = document.getElementById('shoppingListSection')
 
+	// =========================================================================
+	// MIEJSCE NA TWOJĄ KONFIGURACJĘ KOLEJNOŚCI I KATEGORII W PRZYSZŁOŚCI
+	// =========================================================================
+
+	// 1. Tutaj ustalasz kolejność wyświetlania kategorii od góry do dołu.
+	// Wszystko, czego nie wpiszesz do słownika poniżej, automatycznie wpadnie do "inne".
+	const CATEGORY_ORDER = ['warzywa', 'owoce', 'nabiał', 'mięso', 'inne']
+
+	// 2. Słownik słów kluczowych. Wpisuj nazwy składników małymi literami.
+	// System sprawdza zawieranie tekstu, więc "pomidor" dopasuje też "pomidory malinowe".
+	const INGREDIENT_TO_CATEGORY = {
+		// Warzywa
+		pomidor: 'warzywa',
+		ogórek: 'warzywa',
+		cebula: 'warzywa',
+		czosnek: 'warzywa',
+		marchew: 'warzywa',
+		ziemniak: 'warzywa',
+		sałata: 'warzywa',
+		szpinak: 'warzywa',
+		papryka: 'warzywa',
+		cukinia: 'warzywa',
+		rzodkiewka: 'warzywa',
+		seler: 'warzywa',
+
+		// Owoce
+		jabłko: 'owoce',
+		banan: 'owoce',
+		cytryna: 'owoce',
+		truskawk: 'owoce',
+		borówk: 'owoce',
+		awokado: 'owoce',
+		mango: 'owoce',
+
+		// Nabiał (Przykłady na przyszłość)
+		mleko: 'nabiał',
+		ser: 'nabiał',
+		twaróg: 'nabiał',
+		jaj: 'nabiał',
+
+		// Mięso (Przykłady na przyszłość)
+		kurczak: 'mięso',
+		pierś: 'mięso',
+		mielone: 'mięso',
+	}
+
+	// Funkcja pomocnicza przypisująca kategorię do produktu
+	function getItemCategory(name) {
+		const lowerName = name.toLowerCase().trim()
+
+		// Przeszukujemy słownik słów kluczowych
+		for (const [keyword, category] of Object.entries(INGREDIENT_TO_CATEGORY)) {
+			if (lowerName.includes(keyword)) {
+				return category
+			}
+		}
+		return 'inne' // Domyślna kategoria, jeśli produkt nie pasuje do żadnego słowa kluczowego
+	}
+
+	// =========================================================================
+
 	// --- FUNKCJA ODMIANY ---
 	function getPolishForm(n, s1, s2, s3) {
 		if (n === 1) return s1
@@ -1379,24 +1400,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
 	// --- PARSER ---
 	function parseIngredient(itemStr) {
-		// Regex dopasowuje: nazwę, potem liczbę (całkowitą lub z przecinkiem/kropką) oraz jednostkę (g, ml, szt, szt.) na samym końcu
 		const match = itemStr.match(/^(.*?)\s*(\d+[\.,]?\d*)\s*(g|ml|szt\.?|szt)?$/i)
 
 		if (match) {
 			const name = match[1].trim()
 			const qty = parseFloat(match[2].replace(',', '.'))
-			let unit = (match[3] || '').toLowerCase().replace('.', '') // Standaryzacja: "szt." -> "szt"
+			let unit = (match[3] || '').toLowerCase().replace('.', '')
 
-			// Jeśli użytkownik nie podał jednostki (np. "cebula 2"), domyślnie ustawiamy "szt"
 			if (!unit) unit = 'szt'
 
-			// Kompatybilność wsteczna: stary chleb w kromkach/sztukach odpalał logikę bochenków
 			const isBread = name.toLowerCase() === 'chleb' && unit === 'szt'
 
 			return { name, qty, unit, isBread }
 		}
 
-		// Awaryjny return, jeśli linijka nie ma podanej ilości (np. sam wpis "sól")
 		return { name: itemStr.trim(), qty: 1, unit: 'szt', isBread: false }
 	}
 
@@ -1501,32 +1518,49 @@ document.addEventListener('DOMContentLoaded', () => {
 			} else {
 				sortKey = itemData.displayName.toLowerCase()
 
-				// --- LOGIKA BEZ SPACJI PRZED JEDNOSTKAMI ---
 				if (itemData.unit === 'g' && amount >= 1000) {
 					const kg = Math.floor(amount / 1000)
 					const g = Math.round(amount % 1000)
-					const restG = g > 0 ? ` ${g}g` : '' // Spacja tylko jako separator między kg a g
+					const restG = g > 0 ? ` ${g}g` : ''
 					htmlContent = `${itemData.displayName} <strong>${kg}kg${restG}</strong>`
 				} else if (itemData.unit === 'ml' && amount >= 1000) {
 					const l = Math.floor(amount / 1000)
 					const ml = Math.round(amount % 1000)
-					const restMl = ml > 0 ? ` ${ml}ml` : '' // Spacja tylko jako separator między l a ml
+					const restMl = ml > 0 ? ` ${ml}ml` : ''
 					htmlContent = `${itemData.displayName} <strong>${l}l${restMl}</strong>`
 				} else {
-					// Format bez spacji dla wartości poniżej 1000 oraz sztuk (np. 113g, 2szt)
 					htmlContent = `${itemData.displayName} <strong>${amount}${itemData.unit}</strong>`
 				}
 			}
 
+			// Przypisanie kategorii dla danego elementu listy
+			const itemCategory = key === 'BREAD_TOTAL' ? getItemCategory('chleb') : getItemCategory(itemData.displayName)
+
 			list.push({
 				label: htmlContent,
 				sortKey: sortKey,
+				category: itemCategory, // Dodane na potrzeby zaawansowanego sortowania
 			})
 		})
 
-		// --- SORTOWANIE ALFABETYCZNE ---
+		// --- ZAAWANSOWANE SORTOWANIE (NAJPIERW KATEGORIA, POTEM ALFABETYCZNIE) ---
 		shoppingContainer.innerHTML = ''
-		list.sort((a, b) => a.sortKey.localeCompare(b.sortKey, 'pl'))
+
+		list.sort((a, b) => {
+			const indexA = CATEGORY_ORDER.indexOf(a.category)
+			const indexB = CATEGORY_ORDER.indexOf(b.category)
+
+			// Jeśli kategoria nie została znaleziona w tablicy (błąd zabezpieczenia), ustawiamy ją na koniec
+			const weightA = indexA === -1 ? 999 : indexA
+			const weightB = indexB === -1 ? 999 : indexB
+
+			if (weightA !== weightB) {
+				return weightA - weightB // Sortowanie według kolejności z tablicy CATEGORY_ORDER
+			}
+
+			// Jeśli ta sama kategoria – sortuj alfabetycznie po języku polskim
+			return a.sortKey.localeCompare(b.sortKey, 'pl')
+		})
 
 		list.forEach(item => {
 			const el = document.createElement('div')
@@ -1547,7 +1581,6 @@ document.addEventListener('DOMContentLoaded', () => {
 		shoppingSection.style.display = 'block'
 	}
 
-	// Przycisk odświeżania listy
 	const refreshListBtn = document.getElementById('refreshListBtn')
 	if (refreshListBtn) {
 		refreshListBtn.onclick = () => {

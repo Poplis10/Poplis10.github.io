@@ -679,6 +679,7 @@ button:active {
 
 /* Podgląd składników */
 .ingredients-preview {
+	display: none;
 	margin-top: 8px;
 	padding: 8px;
 	background-color: #f9f9f9;
@@ -696,6 +697,7 @@ button:active {
 }
 
 .ingredients-preview.active {
+	display: block;
 	max-height: 300px; /* Maksymalna wysokość po rozwinięciu */
 	opacity: 1;
 	padding: 10px;
@@ -938,6 +940,17 @@ button {
 .sub-meals-grid {
 	width: 100%;
 	padding: 5px 0;
+}
+
+.sub-card {
+	border: 1px solid #eee;
+	border-left: 5px solid #4caf50;
+	background: #fff;
+	box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+	padding: 12px;
+	border-radius: 8px;
+	width: 100%;
+	margin-top: 5px;
 }
 
 /* Usunięcie domyślnego marginesu, jeśli pod-kafelek jest ostatni */
