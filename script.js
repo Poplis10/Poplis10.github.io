@@ -1328,18 +1328,16 @@ document.addEventListener('DOMContentLoaded', () => {
 	const shoppingContainer = document.getElementById('shoppingListContainer')
 	const shoppingSection = document.getElementById('shoppingListSection')
 
-	// =========================================================================
-	// MIEJSCE NA TWOJĄ KONFIGURACJĘ KOLEJNOŚCI I KATEGORII W PRZYSZŁOŚCI
-	// =========================================================================
+	// Elementy nowego modalu wyboru dni
+	const shoppingDaysModal = document.getElementById('shoppingDaysModal')
+	const closeDaysModalBtn = document.getElementById('closeDaysModalBtn')
+	const confirmGenerateListBtn = document.getElementById('confirmGenerateListBtn')
+	const selectAllDaysCb = document.getElementById('selectAllDays')
+	const dayCheckboxes = document.querySelectorAll('.day-selection-cb')
 
-	// 1. Tutaj ustalasz kolejność wyświetlania kategorii od góry do dołu.
-	// Wszystko, czego nie wpiszesz do słownika poniżej, automatycznie wpadnie do "inne".
 	const CATEGORY_ORDER = ['warzywa', 'owoce', 'nabiał', 'mięso', 'inne']
 
-	// 2. Słownik słów kluczowych. Wpisuj nazwy składników małymi literami.
-	// System sprawdza zawieranie tekstu, więc "pomidor" dopasuje też "pomidory malinowe".
 	const INGREDIENT_TO_CATEGORY = {
-		// Warzywa
 		pomidor: 'warzywa',
 		ogórek: 'warzywa',
 		cebula: 'warzywa',
@@ -1352,8 +1350,9 @@ document.addEventListener('DOMContentLoaded', () => {
 		cukinia: 'warzywa',
 		rzodkiewka: 'warzywa',
 		seler: 'warzywa',
+		kapary: 'warzywa',
 
-		// Owoce
+		//owoce
 		jabłko: 'owoce',
 		banan: 'owoce',
 		cytryna: 'owoce',
@@ -1361,35 +1360,29 @@ document.addEventListener('DOMContentLoaded', () => {
 		borówk: 'owoce',
 		awokado: 'owoce',
 		mango: 'owoce',
+		maliny: 'owoce',
+		pomarańcz: 'owoce',
 
-		// Nabiał (Przykłady na przyszłość)
+		//nabiał
 		mleko: 'nabiał',
 		ser: 'nabiał',
 		twaróg: 'nabiał',
 		jaj: 'nabiał',
 
-		// Mięso (Przykłady na przyszłość)
+		//mięso
 		kurczak: 'mięso',
 		pierś: 'mięso',
 		mielone: 'mięso',
 	}
 
-	// Funkcja pomocnicza przypisująca kategorię do produktu
 	function getItemCategory(name) {
 		const lowerName = name.toLowerCase().trim()
-
-		// Przeszukujemy słownik słów kluczowych
 		for (const [keyword, category] of Object.entries(INGREDIENT_TO_CATEGORY)) {
-			if (lowerName.includes(keyword)) {
-				return category
-			}
+			if (lowerName.includes(keyword)) return category
 		}
-		return 'inne' // Domyślna kategoria, jeśli produkt nie pasuje do żadnego słowa kluczowego
+		return 'inne'
 	}
 
-	// =========================================================================
-
-	// --- FUNKCJA ODMIANY ---
 	function getPolishForm(n, s1, s2, s3) {
 		if (n === 1) return s1
 		const n10 = n % 10
@@ -1398,48 +1391,64 @@ document.addEventListener('DOMContentLoaded', () => {
 		return s3
 	}
 
-	// --- PARSER ---
 	function parseIngredient(itemStr) {
 		const match = itemStr.match(/^(.*?)\s*(\d+[\.,]?\d*)\s*(g|ml|szt\.?|szt)?$/i)
-
 		if (match) {
 			const name = match[1].trim()
 			const qty = parseFloat(match[2].replace(',', '.'))
 			let unit = (match[3] || '').toLowerCase().replace('.', '')
-
 			if (!unit) unit = 'szt'
-
 			const isBread = name.toLowerCase() === 'chleb' && unit === 'szt'
-
 			return { name, qty, unit, isBread }
 		}
-
 		return { name: itemStr.trim(), qty: 1, unit: 'szt', isBread: false }
 	}
 
+	// --- LOGIKA MODALU WYBORU DNI ---
+
+	// 1. Kliknięcie głównego przycisku otwiera modal zamiast generować listę od razu
+	generateListBtn.onclick = () => {
+		shoppingDaysModal.style.display = 'flex'
+	}
+
+	// 2. Zamknięcie modalu
+	closeDaysModalBtn.onclick = () => {
+		shoppingDaysModal.style.display = 'none'
+	}
+
+	// 3. Masowe zaznaczanie / odznaczanie dni
+	selectAllDaysCb.onchange = e => {
+		dayCheckboxes.forEach(cb => {
+			cb.checked = e.target.checked
+		})
+	}
+
+	// Opcjonalnie: odznacz "Zaznacz wszystko", jeśli użytkownik ręcznie odznaczy pojedynczy dzień
+	dayCheckboxes.forEach(cb => {
+		cb.addEventListener('change', () => {
+			const allChecked = Array.from(dayCheckboxes).every(c => c.checked)
+			selectAllDaysCb.checked = allChecked
+		})
+	})
+
 	// --- OBSŁUGA DRAG & DROP ---
 	let dragSrcEl = null
-
 	function handleDragStart(e) {
 		this.style.opacity = '0.4'
 		dragSrcEl = this
 		e.dataTransfer.effectAllowed = 'move'
 		e.dataTransfer.setData('text/html', this.innerHTML)
 	}
-
 	function handleDragOver(e) {
 		if (e.preventDefault) e.preventDefault()
 		return false
 	}
-
 	function handleDragEnter(e) {
 		this.classList.add('over')
 	}
-
 	function handleDragLeave(e) {
 		this.classList.remove('over')
 	}
-
 	function handleDrop(e) {
 		if (e.stopPropagation) e.stopPropagation()
 		if (dragSrcEl !== this) {
@@ -1448,19 +1457,45 @@ document.addEventListener('DOMContentLoaded', () => {
 		}
 		return false
 	}
-
 	function handleDragEnd(e) {
 		this.style.opacity = '1'
-		const items = document.querySelectorAll('.shopping-item')
-		items.forEach(item => item.classList.remove('over'))
+		document.querySelectorAll('.shopping-item').forEach(item => item.classList.remove('over'))
 	}
 
-	// --- GENEROWANIE LISTY ---
-	generateListBtn.onclick = () => {
+	// --- WŁAŚCIWE GENEROWANIE LISTY (ZAKOŃCZENIE PRACY W MODALU) ---
+	confirmGenerateListBtn.onclick = () => {
+		// Pobierz tablicę wybranych indeksów dni z modalu (0 = Poniedziałek, 6 = Niedziela)
+		const selectedDays = Array.from(dayCheckboxes)
+			.filter(cb => cb.checked)
+			.map(cb => parseInt(cb.value))
+
+		if (selectedDays.length === 0) {
+			alert('Wybierz przynajmniej jeden dzień, aby wygenerować listę!')
+			return
+		}
+
 		const meals = document.querySelectorAll('.meal-container[data-ingredients]')
 		const summary = {}
 
 		meals.forEach(meal => {
+			// 1. Szukamy komórki <td>, w której znajduje się ten posiłek (np. <td id="sn-1">)
+			const cell = meal.closest('td')
+			let mealDayIndex = -1
+
+			if (cell && cell.id) {
+				// 2. Wyciągamy liczbę po myślniku z ID komórki (np. "sn-1" da nam "1")
+				const match = cell.id.match(/-(\d+)$/)
+				if (match) {
+					// Zamieniamy system 1-7 z Twojego HTML na system 0-6 z modalu (odejmując 1)
+					mealDayIndex = parseInt(match[1]) - 1
+				}
+			}
+
+			// 3. Jeśli ustaliliśmy dzień i NIE ma go na liście zaznaczonych w modalu – pomijamy posiłek!
+			if (mealDayIndex !== -1 && !selectedDays.includes(mealDayIndex)) {
+				return
+			}
+
 			let data = meal.getAttribute('data-ingredients')
 			if (!data) return
 			const items = data
@@ -1471,16 +1506,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 			items.forEach(item => {
 				const { qty, unit, isBread, name } = parseIngredient(item)
-
 				const key = isBread ? 'BREAD_TOTAL' : `${name.toLowerCase()}|||${unit}`
 
 				if (!summary[key]) {
-					summary[key] = {
-						displayName: name,
-						qty: 0,
-						unit: unit,
-						isBread: isBread,
-					}
+					summary[key] = { displayName: name, qty: 0, unit: unit, isBread: isBread }
 				}
 				summary[key].qty += qty
 			})
@@ -1488,7 +1517,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 		if (Object.keys(summary).length === 0) {
 			shoppingSection.style.display = 'none'
-			alert('Twoja lista jest pusta! Dodaj składniki do posiłków, aby wygenerować listę zakupów.')
+			shoppingDaysModal.style.display = 'none'
+			alert('Wybrane dni nie zawierają posiłków ze składnikami!')
 			return
 		}
 
@@ -1503,88 +1533,69 @@ document.addEventListener('DOMContentLoaded', () => {
 				const totalSlices = Math.round(amount)
 				const loaves = Math.floor(totalSlices / 20)
 				const remainingSlices = totalSlices % 20
-
 				sortKey = 'chleb'
 
 				if (loaves > 0) {
 					const loafWord = getPolishForm(loaves, 'chleb', 'chleby', 'chlebów')
 					htmlContent = `${loafWord} <strong>${loaves}</strong>`
-					if (remainingSlices > 0) {
-						htmlContent += ` + kromki <strong>${remainingSlices}</strong>`
-					}
+					if (remainingSlices > 0) htmlContent += ` + kromki <strong>${remainingSlices}</strong>`
 				} else {
 					htmlContent = `chleb (kromki) <strong>${remainingSlices}</strong>`
 				}
 			} else {
 				sortKey = itemData.displayName.toLowerCase()
-
 				if (itemData.unit === 'g' && amount >= 1000) {
-					const kg = Math.floor(amount / 1000)
-					const g = Math.round(amount % 1000)
-					const restG = g > 0 ? ` ${g}g` : ''
-					htmlContent = `${itemData.displayName} <strong>${kg}kg${restG}</strong>`
+					const kg = Math.floor(amount / 1000),
+						g = Math.round(amount % 1000)
+					htmlContent = `${itemData.displayName} <strong>${kg}kg${g > 0 ? ` ${g}g` : ''}</strong>`
 				} else if (itemData.unit === 'ml' && amount >= 1000) {
-					const l = Math.floor(amount / 1000)
-					const ml = Math.round(amount % 1000)
-					const restMl = ml > 0 ? ` ${ml}ml` : ''
-					htmlContent = `${itemData.displayName} <strong>${l}l${restMl}</strong>`
+					const l = Math.floor(amount / 1000),
+						ml = Math.round(amount % 1000)
+					htmlContent = `${itemData.displayName} <strong>${l}l${ml > 0 ? ` ${ml}ml` : ''}</strong>`
 				} else {
 					htmlContent = `${itemData.displayName} <strong>${amount}${itemData.unit}</strong>`
 				}
 			}
 
-			// Przypisanie kategorii dla danego elementu listy
 			const itemCategory = key === 'BREAD_TOTAL' ? getItemCategory('chleb') : getItemCategory(itemData.displayName)
-
-			list.push({
-				label: htmlContent,
-				sortKey: sortKey,
-				category: itemCategory, // Dodane na potrzeby zaawansowanego sortowania
-			})
+			list.push({ label: htmlContent, sortKey: sortKey, category: itemCategory })
 		})
 
-		// --- ZAAWANSOWANE SORTOWANIE (NAJPIERW KATEGORIA, POTEM ALFABETYCZNIE) ---
 		shoppingContainer.innerHTML = ''
-
 		list.sort((a, b) => {
-			const indexA = CATEGORY_ORDER.indexOf(a.category)
-			const indexB = CATEGORY_ORDER.indexOf(b.category)
-
-			// Jeśli kategoria nie została znaleziona w tablicy (błąd zabezpieczenia), ustawiamy ją na koniec
-			const weightA = indexA === -1 ? 999 : indexA
-			const weightB = indexB === -1 ? 999 : indexB
-
-			if (weightA !== weightB) {
-				return weightA - weightB // Sortowanie według kolejności z tablicy CATEGORY_ORDER
-			}
-
-			// Jeśli ta sama kategoria – sortuj alfabetycznie po języku polskim
+			const indexA = CATEGORY_ORDER.indexOf(a.category),
+				indexB = CATEGORY_ORDER.indexOf(b.category)
+			const weightA = indexA === -1 ? 999 : indexA,
+				weightB = indexB === -1 ? 999 : indexB
+			if (weightA !== weightB) return weightA - weightB
 			return a.sortKey.localeCompare(b.sortKey, 'pl')
 		})
 
 		list.forEach(item => {
-			const el = document.createElement('div')
-			el.className = 'shopping-item'
-			el.draggable = true
-			el.innerHTML = `<input type="checkbox"> <span>${item.label}</span>`
+            const el = document.createElement('div')
+            el.className = 'shopping-item'
+            el.draggable = true
+            el.innerHTML = `<input type="checkbox"> <span>${item.label}</span>`
 
-			el.addEventListener('dragstart', handleDragStart)
-			el.addEventListener('dragenter', handleDragEnter)
-			el.addEventListener('dragover', handleDragOver)
-			el.addEventListener('dragleave', handleDragLeave)
-			el.addEventListener('drop', handleDrop)
-			el.addEventListener('dragend', handleDragEnd)
+            el.addEventListener('dragstart', handleDragStart)
+            el.addEventListener('dragenter', handleDragEnter)
+            el.addEventListener('dragover', handleDragOver)
+            el.addEventListener('dragleave', handleDragLeave)
+            el.addEventListener('drop', handleDrop)
+            el.addEventListener('dragend', handleDragEnd)
 
-			shoppingContainer.appendChild(el)
-		})
+            shoppingContainer.appendChild(el)
+        })
 
-		shoppingSection.style.display = 'block'
-	}
+        shoppingSection.style.display = 'block'
+        shoppingDaysModal.style.display = 'none' 
+    }
 
 	const refreshListBtn = document.getElementById('refreshListBtn')
 	if (refreshListBtn) {
 		refreshListBtn.onclick = () => {
-			generateListBtn.click()
+			// Odświeżanie wykonuje ponowne kliknięcie ukrytego potwierdzenia (generuje dla aktualnie zaznaczonych dni w modalu)
+			confirmGenerateListBtn.click()
 		}
 	}
 })
