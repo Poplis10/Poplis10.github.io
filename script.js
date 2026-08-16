@@ -1,6 +1,6 @@
-if ('serviceWorker' in navigator) {
-	navigator.serviceWorker.register('sw.js')
-}
+// if ('serviceWorker' in navigator) {
+// 	navigator.serviceWorker.register('sw.js')
+// }
 
 // --- KONFIGURACJA FIREBASE ---
 const firebaseConfig = {
@@ -48,7 +48,7 @@ db.ref('mealDatabase').on('value', snapshot => {
 
 	globalMealDatabase = dataArray
 
-	// Czyszczenie wszystkich akordeonów przed ponownym renderрованием
+	// Czyszczenie wszystkich akordeonów przed ponownym renderowaniem
 	document.querySelectorAll('.category-content').forEach(c => (c.innerHTML = ''))
 
 	// Renderowanie posortowanych dań
@@ -1229,15 +1229,23 @@ function openMealPicker(btn) {
 	const renderList = (filterText = '', activeCat = '') => {
 		listContainer.innerHTML = ''
 
-		const cats = ['śniadanie', 'obiad', 'kolacja', 'przekąska', 'gotowiec', 'wszystkie']
+		const cats = ['śniadanie-lub-kolacja', 'obiad', 'drugie-śniadanie-lub-podwieczorek', 'gotowiec', 'wszystkie']
 		filterBar.innerHTML = ''
+
+		const categoryLabels = {
+			'śniadanie-lub-kolacja': 'Śniadanie lub kolacja',
+			obiad: 'Obiad',
+			'drugie-śniadanie-lub-podwieczorek': 'Drugie śniadanie lub podwieczorek',
+			gotowiec: 'Gotowiac',
+			wszystkie: 'Wszystkie',
+		}
 
 		cats.forEach(c => {
 			const isAll = c === 'wszystkie'
 			const isActive = (isAll && activeCat === '') || activeCat === c
 
 			const b = document.createElement('button')
-			b.innerText = c.toUpperCase()
+			b.innerText = categoryLabels[c].toUpperCase()
 			b.style.cssText = `padding:5px 12px; font-size:10px; cursor:pointer; border-radius:15px; border:1px solid #ddd; 
                                transition: all 0.2s; background:${isActive ? '#4caf50' : '#fff'}; color:${isActive ? '#fff' : '#333'}`
 			b.onclick = () => renderList(searchInput.value, isAll ? '' : c)
@@ -1259,9 +1267,9 @@ function openMealPicker(btn) {
 			const item = document.createElement('div')
 			item.className = 'meal-picker-item'
 			item.innerHTML = `
-                <span><strong>${meal.name}</strong></span>
-                <small style="background:#eee; padding:2px 6px; border-radius:4px; font-size:10px;">${meal.category}</small>
-            `
+			<span><strong>${meal.name}</strong></span>
+			<small style="background:#eee; padding:2px 6px; border-radius:4px; font-size:10px;">${categoryLabels[meal.category] || meal.category}</small>
+		`
 			item.onclick = () => {
 				if (meal.category === 'gotowiec') {
 					// POPRAWKA: Zamiast zawodnego cellId, bierzemy gotowy, przeliczony wyżej indeks dnia
@@ -1572,24 +1580,24 @@ document.addEventListener('DOMContentLoaded', () => {
 		})
 
 		list.forEach(item => {
-            const el = document.createElement('div')
-            el.className = 'shopping-item'
-            el.draggable = true
-            el.innerHTML = `<input type="checkbox"> <span>${item.label}</span>`
+			const el = document.createElement('div')
+			el.className = 'shopping-item'
+			el.draggable = true
+			el.innerHTML = `<input type="checkbox"> <span>${item.label}</span>`
 
-            el.addEventListener('dragstart', handleDragStart)
-            el.addEventListener('dragenter', handleDragEnter)
-            el.addEventListener('dragover', handleDragOver)
-            el.addEventListener('dragleave', handleDragLeave)
-            el.addEventListener('drop', handleDrop)
-            el.addEventListener('dragend', handleDragEnd)
+			el.addEventListener('dragstart', handleDragStart)
+			el.addEventListener('dragenter', handleDragEnter)
+			el.addEventListener('dragover', handleDragOver)
+			el.addEventListener('dragleave', handleDragLeave)
+			el.addEventListener('drop', handleDrop)
+			el.addEventListener('dragend', handleDragEnd)
 
-            shoppingContainer.appendChild(el)
-        })
+			shoppingContainer.appendChild(el)
+		})
 
-        shoppingSection.style.display = 'block'
-        shoppingDaysModal.style.display = 'none' 
-    }
+		shoppingSection.style.display = 'block'
+		shoppingDaysModal.style.display = 'none'
+	}
 
 	const refreshListBtn = document.getElementById('refreshListBtn')
 	if (refreshListBtn) {

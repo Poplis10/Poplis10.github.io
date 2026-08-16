@@ -40,8 +40,8 @@
                         <td id="sn-6"></td>
                         <td id="sn-7"></td>
                     </tr>
-                    <tr data-category="przekąska">
-                        <td class="row-title">Przekąska</td>
+                    <tr data-category="drugie-śniadanie">
+                        <td class="row-title">Drugie śniadanie</td>
                         <td id="pr-1"></td>
                         <td id="pr-2"></td>
                         <td id="pr-3"></td>
@@ -59,6 +59,16 @@
                         <td id="ob-5"></td>
                         <td id="ob-6"></td>
                         <td id="ob-7"></td>
+                    </tr>
+                    <tr data-category="podwieczorek">
+                        <td class="row-title">Podwieczorek</td>
+                        <td id="pd-1"></td>
+                        <td id="pd-2"></td>
+                        <td id="pd-3"></td>
+                        <td id="pd-4"></td>
+                        <td id="pd-5"></td>
+                        <td id="pd-6"></td>
+                        <td id="pd-7"></td>
                     </tr>
                     <tr data-category="kolacja">
                         <td class="row-title">Kolacja</td>
@@ -108,15 +118,16 @@
             <div class="database-section">
                 <h2>TWOJA BAZA POSIŁKÓW</h2>
                 <div id="mealsDatabase" class="meals-grid">
-                    <details id="db-śniadanie" class="category-accordion">
-                        <summary>Śniadania <span class="meal-count">(0)</span></summary>
+
+                    <details id="db-śniadanie-lub-kolacja"  class="category-accordion">
+                        <summary>Śniadania i kolacje <span class="meal-count">(0)</span></summary>
                         <div class="category-wrapper">
                             <div class="category-content"></div>
                         </div>
                     </details>
 
-                    <details id="db-przekaska" class="category-accordion">
-                        <summary>Przekąski <span class="meal-count">(0)</span></summary>
+                    <details id="db-drugie-śniadanie-lub-podwieczorek" class="category-accordion">
+                        <summary>Drugie śniadania i podwieczorki <span class="meal-count">(0)</span></summary>
                         <div class="category-wrapper">
                             <div class="category-content"></div>
                         </div>
@@ -129,12 +140,12 @@
                         </div>
                     </details>
 
-                    <details id="db-kolacja" class="category-accordion">
+                    <!-- <details id="db-kolacja" class="category-accordion">
                         <summary>Kolacje <span class="meal-count">(0)</span></summary>
                         <div class="category-wrapper">
                             <div class="category-content"></div>
                         </div>
-                    </details>
+                    </details> -->
 
                     <details id="db-gotowiec" class="category-accordion">
                         <summary>Gotowce <span class="meal-count">(0)</span></summary>
@@ -147,6 +158,9 @@
             </div>
 
         </div>
+
+
+    <!-- // MODAL PO KLIKNIĘCIU + W TABELI -->
 
         <div id="mealPickerModal" class="overlay" style="display:none;">
             <div class="modal">
@@ -163,16 +177,18 @@
             </div>
         </div>
 
+
+    <!-- // MODAL DODAJ POSIŁEK DO BAZY -->
+
         <div id="modalOverlay" class="overlay">
             <div class="modal">
                 <h2 id="modalFormTitle">Dodaj do bazy</h2>
                 <form id="addToDatabaseForm">
                     <label>Kategoria:</label>
                     <select id="db-category-select" onchange="toggleFormFields()">
-                        <option value="śniadanie">Śniadanie</option>
-                        <option value="przekąska">Przekąska</option>
+                        <option value="śniadanie-lub-kolacja">Śniadanie lub kolacja</option>
+                        <option value="drugie-śniadanie-lub-podwieczorek">Drugie śniadanie lub podwieczorek</option>
                         <option value="obiad">Obiad</option>
-                        <option value="kolacja">Kolacja</option>
                         <option value="gotowiec">Gotowiec (Zestaw jednodniowy)</option>
                     </select>
 
@@ -230,6 +246,9 @@
             </div>
         </div>
 
+
+    <!-- // MODAL DODAJ W BAZIE POSIŁKÓW -->
+
         <div id="meal-modal" class="overlay">
             <div class="modal">
                 <h3>Dodaj posiłek do planu</h3>
@@ -249,8 +268,9 @@
                     <label for="modal-category-select">Wybierz posiłek:</label>
                     <select id="modal-category-select">
                         <option value="śniadanie">Śniadanie</option>
-                        <option value="przekąska">Przekąska</option>
+                        <option value="drugie-śniadanie">Drugie śniadanie</option>
                         <option value="obiad">Obiad</option>
+                        <option value="podwieczorek">Podwieczorek</option>
                         <option value="kolacja">Kolacja</option>
                     </select>
 

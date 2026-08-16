@@ -16,6 +16,10 @@ body {
 		color 0.3s ease;
 }
 
+#db-kolacja {
+	display: none;
+}
+
 /* Przycisk Koła Zębatego */
 #settings-toggle {
 	position: fixed;
@@ -239,7 +243,7 @@ th {
 
 th:first-child,
 td:first-child {
-	width: 62px;
+	width: 77px;
 	padding: 16px 4px;
 	font-size: 1em;
 }
