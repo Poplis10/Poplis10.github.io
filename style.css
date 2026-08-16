@@ -538,7 +538,7 @@ button:active {
 
 /* Pasek nagłówka (to, co klikamy) */
 .category-accordion summary {
-	padding: 15px;
+	padding: 10px;
 	background: #f8f9fa;
 	cursor: pointer;
 	list-style: none;
@@ -629,7 +629,7 @@ button:active {
 	display: flex;
 	flex-direction: column; /* Akordeony jeden pod drugim */
 	gap: 15px;
-	padding: 15px;
+	padding: 12px;
 	background: #f8f9fa;
 	border-radius: 8px;
 }
