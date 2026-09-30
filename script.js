@@ -1883,7 +1883,19 @@ document.addEventListener('DOMContentLoaded', () => {
 	const selectAllDaysCb = document.getElementById('selectAllDays')
 	const dayCheckboxes = document.querySelectorAll('.day-selection-cb')
 
-	const CATEGORY_ORDER = ['olej', 'passaty', 'owoce', 'warzywa', 'chleb', 'nabiał', 'mięso', 'jajka', 'kasze' , 'mrozonki', 'inne']
+	const CATEGORY_ORDER = [
+		'olej',
+		'passaty',
+		'owoce',
+		'warzywa',
+		'chleb',
+		'nabiał',
+		'mięso',
+		'jajka',
+		'kasze',
+		'mrozonki',
+		'inne',
+	]
 
 	const INGREDIENT_TO_CATEGORY = {
 		//olej
@@ -1952,27 +1964,27 @@ document.addEventListener('DOMContentLoaded', () => {
 		filet: 'mrozonki',
 
 		//inne
-		tubka: 'inne'
+		tubka: 'inne',
 	}
 
 	function getItemCategory(name) {
-    const lowerName = name.toLowerCase().trim()
+		const lowerName = name.toLowerCase().trim()
 
-    // Wyjątki — sprawdzamy je przed zwykłymi kategoriami
-    if (lowerName.includes('masło orzechowe')) {
-        return 'inne'
-    }
-	if (lowerName.includes('tubka')) {
-        return 'inne'
-    }
+		// Wyjątki — sprawdzamy je przed zwykłymi kategoriami
+		if (lowerName.includes('masło orzechowe')) {
+			return 'inne'
+		}
+		if (lowerName.includes('tubka')) {
+			return 'inne'
+		}
 
-    // Standardowe przypisywanie do kategorii
-    for (const [keyword, category] of Object.entries(INGREDIENT_TO_CATEGORY)) {
-        if (lowerName.includes(keyword)) return category
-    }
+		// Standardowe przypisywanie do kategorii
+		for (const [keyword, category] of Object.entries(INGREDIENT_TO_CATEGORY)) {
+			if (lowerName.includes(keyword)) return category
+		}
 
-    return 'inne'
-}
+		return 'inne'
+	}
 
 	function getPolishForm(n, s1, s2, s3) {
 		if (n === 1) return s1
@@ -2122,17 +2134,27 @@ document.addEventListener('DOMContentLoaded', () => {
 			// PRODUKT RĘCZNY
 			if (item.additional) {
 				el.innerHTML = `
-                <input type="checkbox">
+        <input type="checkbox">
 
-                <span class="shopping-item-name">
-                    ${item.label}
-                </span>
+        <span class="shopping-item-name">
+            ${item.displayName || ''}
+        </span>
 
-                <button
-                    type="button"
-                    class="delete-shopping-item-btn"
-                >×</button>
-            `
+        <input
+            type="text"
+            class="shopping-item-quantity"
+            value="${item.quantity !== undefined ? item.quantity : ''}"
+        >
+
+        <span class="shopping-item-unit">
+            ${item.unit || ''}
+        </span>
+
+        <button
+            type="button"
+            class="delete-shopping-item-btn"
+        >×</button>
+    `
 
 				// PRODUKT GENEROWANY
 			} else {
