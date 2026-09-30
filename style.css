@@ -394,19 +394,64 @@ button:active {
 }
 
 .planner-section {
-	width: 300px;
+	width: 350px;
 	min-width: 300px;
 	flex-shrink: 0;
 }
 
 .planner-section-title {
-	height: 32px;
 	gap: 10px;
-	margin: 20px 0;
+	margin: 32px 0 0;
 	display: flex;
 	flex-direction: row;
 	align-items: center;
 	justify-content: center;
+}
+
+.planner-section-title h2 {
+	margin: 0;
+}
+
+#showShoppingListBtn {
+	max-width: 140px;
+	background: #007bff;
+}
+
+#showShoppingListBtns {
+	display: flex;
+	justify-content: space-evenly;
+	padding: 20px 10px;
+}
+
+.add-shopping-item-btn {
+	background: #093466;
+	color: white;
+	border: none;
+	border-radius: 50%;
+	width: 32px;
+	height: 32px;
+	font-size: 24px;
+	line-height: 1;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: all 0.3s ease;
+	box-shadow: none;
+	padding: 0;
+}
+
+.add-shopping-item-btn span {
+	transition: all 0.3s ease;
+}
+
+.add-shopping-item-btn:hover {
+	background: #072e5a;
+	transform: translate(0);
+}
+
+.add-shopping-item-btn:hover span {
+	transform: scale(1.05);
 }
 
 .refresh-list-btn {
@@ -423,7 +468,6 @@ button:active {
 	justify-content: center;
 	transition: all 0.3s ease;
 	box-shadow: none;
-	margin-left: 20px; /* Odstęp od napisu */
 	padding: 0;
 }
 
@@ -456,7 +500,6 @@ button:active {
 
 .close-list-btn:hover {
 	background: #e74c3c;
-	color: white;
 	transform: rotate(90deg);
 }
 
@@ -472,7 +515,6 @@ button:active {
 }
 
 .shopping-item {
-	cursor: grab; /* Zmienia kursor na "rączkę" */
 	padding: 10px;
 	border: 1px solid transparent;
 	transition: background 0.2s;
@@ -482,8 +524,26 @@ button:active {
 	border-bottom: 1px dashed #eee;
 }
 
-.shopping-item:active {
-	cursor: grabbing;
+.shopping-item button {
+	color: #fff;
+	border: none;
+	border-radius: 50%;
+	width: 32px;
+	height: 32px;
+	font-size: 24px;
+	line-height: 1;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: all 0.2s ease;
+	box-shadow: none;
+	padding: 0;
+	margin-left: auto;
+}
+
+.shopping-item button:hover {
+	transform: rotate(90deg);
 }
 
 .shopping-item.over {
@@ -493,6 +553,19 @@ button:active {
 
 .shopping-item input {
 	margin-right: 10px;
+	width: 16px;
+	height: 16px;
+}
+
+.shopping-item .shopping-item-quantity {
+	width: 2ch;
+	min-width: 2ch;
+	max-width: none;
+	height: 30px;
+	margin: 0;
+	padding: 0 5px;
+	font-weight: bold;
+	box-sizing: content-box;
 }
 
 .print-actions {
@@ -1279,12 +1352,6 @@ body.dark-mode {
 	#importDbBtn {
 		margin: 0;
 	}
-
-	.main-wrapper {
-		flex-direction: row;
-		justify-content: flex-start;
-		align-items: start;
-	}
 }
 
 @media (min-width: 1100px) {
@@ -1302,4 +1369,109 @@ body.dark-mode {
 		display: flex;
 		flex-direction: column;
 	}
+}
+
+/* --- MODAL DODAWANIA PRODUKTU --- */
+
+.shopping-item-modal {
+	display: none;
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.6);
+	justify-content: center;
+	align-items: center;
+	z-index: 10000;
+	padding: 20px;
+}
+
+.shopping-item-modal-content {
+	width: 100%;
+	max-width: 400px;
+	background: #fff;
+	border-radius: 12px;
+	padding: 25px;
+	box-sizing: border-box;
+	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+	animation: shoppingModalIn 0.2s ease-out;
+}
+
+.shopping-item-modal-content h3 {
+	margin: 0 0 20px 0;
+	color: #2c3e50;
+	font-size: 20px;
+	text-align: center;
+}
+
+#newShoppingItemName {
+	width: 100%;
+	box-sizing: border-box;
+	padding: 12px;
+	border: 1px solid #ccc;
+	border-radius: 6px;
+	font-family: inherit;
+	font-size: 16px;
+	outline: none;
+	margin-bottom: 12px ;
+}
+
+#newShoppingItemName:focus {
+	border-color: #093466;
+	box-shadow: 0 0 0 2px rgba(9, 52, 102, 0.12);
+}
+
+.shopping-item-modal-buttons {
+	display: flex;
+	gap: 10px;
+	margin-top: 20px;
+}
+
+.shopping-item-modal-buttons button {
+	flex: 1;
+	padding: 11px 15px;
+	border: none;
+	border-radius: 6px;
+	cursor: pointer;
+	font-weight: bold;
+	font-size: 14px;
+	transition: all 0.2s ease;
+}
+
+#cancelShoppingItemBtn {
+	background: #e74c3c;
+	color: white;
+}
+
+#cancelShoppingItemBtn:hover {
+	background: #c0392b;
+}
+
+#confirmShoppingItemBtn {
+	background: #093466;
+	color: white;
+}
+
+#confirmShoppingItemBtn:hover {
+	background: #072e5a;
+}
+
+/* --- MODAL DODAWANIA PRODUKTU – TRYB CIEMNY --- */
+
+.dark-mode .shopping-item-modal-content {
+	background: #2d2d2d;
+	color: #e0e0e0;
+}
+
+.dark-mode .shopping-item-modal-content h3 {
+	color: #fff;
+}
+
+.dark-mode #newShoppingItemName {
+	background: #3d3d3d;
+	color: #fff;
+	border-color: #555;
+}
+
+.dark-mode #newShoppingItemName:focus {
+	border-color: #093466;
+	box-shadow: 0 0 0 2px rgba(9, 52, 102, 0.25);
 }

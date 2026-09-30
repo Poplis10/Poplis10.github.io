@@ -93,21 +93,69 @@
         </div>
 
         <div class="main-wrapper">
-            <div id="shoppingListSection" class="planner-section" style="display:none;">
+            <div id="shoppingListSection" class="planner-section">
                 <div class="planner-section-title">
                     <h2>LISTA ZAKUPÓW</h2>
+
+                    <button id="showShoppingListBtn" type="button">
+                        POKAŻ LISTĘ
+                    </button>
+                </div>
+
+                <div id="showShoppingListBtns" style="display: none;">
+                    <button id="addShoppingItemBtn" class="add-shopping-item-btn">
+                        <span>+</span>
+                    </button>
+
                     <button class="refresh-list-btn" id="refreshListBtn" title="Aktualizuj listę">
                         <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2"
                             fill="none" stroke-linecap="round" stroke-linejoin="round">
+
                             <polyline points="23 4 23 10 17 10"></polyline>
                             <polyline points="1 20 1 14 7 14"></polyline>
-                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15">
+                            </path>
                         </svg>
                     </button>
-                    <button class="close-list-btn" onclick="closeShoppingList()">&times;</button>
+
+                    <button class="close-list-btn" id="deleteShoppingListBtn" type="button">
+                        &times;
+                    </button>
                 </div>
-                <div id="shoppingListContainer">
+
+                <div id="shoppingListContainer" style="display: none;"></div>
+
+                <!-- MODAL DODAWANIA PRODUKTÓW NIEZALEŻNYCH -->
+                <div id="addShoppingItemModal" class="shopping-item-modal" style="display:none;">
+                    <div class="shopping-item-modal-content">
+                        <h3>Dodaj produkt</h3>
+
+                        <input type="text" id="newShoppingItemName" placeholder="Nazwa produktu">
+
+                        <input type="text" id="newShoppingItemQuantity" placeholder="Ilość">
+
+                        <select id="newShoppingItemUnit">
+                            <option value="szt">szt</option>
+                            <option value="g">g</option>
+                            <option value="kg">kg</option>
+                            <option value="ml">ml</option>
+                            <option value="l">l</option>
+                        </select>
+
+                        <div class="shopping-item-modal-buttons">
+                            <button id="cancelShoppingItemBtn" type="button">
+                                ANULUJ
+                            </button>
+
+                            <button id="confirmShoppingItemBtn" type="button">
+                                DODAJ
+                            </button>
+                        </div>
+                    </div>
                 </div>
+
+
                 <div class="print-actions">
                     <button onclick="printLista()" class="printLista">DRUKUJ LISTĘ ZAKUPÓW</button>
                     <button onclick="downloadLista()" class="downloadLista">POBIERZ LISTĘ (.TXT)</button>
@@ -119,7 +167,7 @@
                 <h2>TWOJA BAZA POSIŁKÓW</h2>
                 <div id="mealsDatabase" class="meals-grid">
 
-                    <details id="db-śniadanie-lub-kolacja"  class="category-accordion">
+                    <details id="db-śniadanie-lub-kolacja" class="category-accordion">
                         <summary>Śniadania i kolacje <span class="meal-count">(0)</span></summary>
                         <div class="category-wrapper">
                             <div class="category-content"></div>
@@ -145,6 +193,7 @@
                         <div class="category-wrapper">
                             <div class="category-content"></div>
                         </div>
+
                     </details> -->
 
                     <details id="db-gotowiec" class="category-accordion">
@@ -160,7 +209,7 @@
         </div>
 
 
-    <!-- // MODAL PO KLIKNIĘCIU + W TABELI -->
+        <!-- // MODAL PO KLIKNIĘCIU + W TABELI -->
 
         <div id="mealPickerModal" class="overlay" style="display:none;">
             <div class="modal">
@@ -178,7 +227,7 @@
         </div>
 
 
-    <!-- // MODAL DODAJ POSIŁEK DO BAZY -->
+        <!-- // MODAL DODAJ POSIŁEK DO BAZY -->
 
         <div id="modalOverlay" class="overlay">
             <div class="modal">
@@ -247,7 +296,7 @@
         </div>
 
 
-    <!-- // MODAL DODAJ W BAZIE POSIŁKÓW -->
+        <!-- // MODAL DODAJ W BAZIE POSIŁKÓW -->
 
         <div id="meal-modal" class="overlay">
             <div class="modal">
