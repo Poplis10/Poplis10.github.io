@@ -2515,22 +2515,52 @@ async function deleteShoppingList() {
 
 deleteShoppingListBtn.addEventListener('click', deleteShoppingList)
 
-// --- POBIERANIE LISTY ZAKÓPÓW ---
+// --- POBIERANIE LISTY ZAKUPÓW ---
 
 function downloadLista() {
 	const items = document.querySelectorAll('.shopping-item')
-	if (items.length === 0) return alert('Lista jest pusta!')
+
+	if (items.length === 0) {
+		return alert('Lista jest pusta!')
+	}
+
 	let text = 'LISTA ZAKUPÓW\n' + new Date().toLocaleDateString() + '\n\n'
+
 	items.forEach(item => {
-		const qty = item.querySelector('strong').innerText
-		const name = item.querySelector('span').innerText
-		text += `[ ] ${qty.padEnd(5)} ${name}\n`
+		const qtyElement = item.querySelector('.shopping-item-quantity')
+		const nameElement = item.querySelector('.shopping-item-name')
+		const unitElement = item.querySelector('.shopping-item-unit')
+		const checkbox = item.querySelector('input[type="checkbox"]')
+
+		if (!qtyElement || !nameElement) return
+
+		const qty = qtyElement.value.trim()
+		const name = nameElement.innerText.trim()
+		const unit = unitElement ? unitElement.innerText.trim() : ''
+		const isChecked = checkbox ? checkbox.checked : false
+
+		if (!name) return
+
+		const check = isChecked ? '[x]' : '[ ]'
+
+		text += `${check} ${qty} ${unit} ${name}\n`
 	})
-	const blob = new Blob([text], { type: 'text/plain' })
+
+	const blob = new Blob([text], {
+		type: 'text/plain;charset=utf-8',
+	})
+
 	const link = document.createElement('a')
-	link.href = URL.createObjectURL(blob)
+	const url = URL.createObjectURL(blob)
+
+	link.href = url
 	link.download = 'Lista_Zakupow.txt'
+
+	document.body.appendChild(link)
 	link.click()
+
+	document.body.removeChild(link)
+	URL.revokeObjectURL(url)
 }
 
 // --- EKSPORT I IMPORT BAZY ---
@@ -2682,29 +2712,46 @@ function printLista() {
 
 async function shareToKeep() {
 	const items = document.querySelectorAll('.shopping-item')
+
 	if (items.length === 0) {
 		alert('Lista zakupów jest pusta!')
 		return
 	}
 
-	// 1. Budujemy tekst listy (czysta lista produktów)
-	let text = ''
-	items.forEach((item, index) => {
-		const qty = item.querySelector('strong').innerText
-		const name = item.querySelector('span').innerText
+	const lines = []
 
-		// Dodajemy nową linię tylko przed kolejnymi produktami (żeby na samym początku nie było pustego wiersza)
-		const lineBreak = index === 0 ? '' : '\n'
-		text += `${lineBreak}${qty} ${name}`
+	items.forEach(item => {
+		const nameElement = item.querySelector('.shopping-item-name')
+		const qtyElement = item.querySelector('.shopping-item-quantity')
+		const unitElement = item.querySelector('.shopping-item-unit')
+		const checkbox = item.querySelector('input[type="checkbox"]')
+
+		if (!nameElement || !qtyElement) return
+
+		const name = nameElement.innerText.trim()
+		const qty = qtyElement.value.trim()
+		const unit = unitElement ? unitElement.innerText.trim() : ''
+		const isChecked = checkbox ? checkbox.checked : false
+
+		if (!name) return
+
+		const check = isChecked ? '[x]' : '[ ]'
+
+		lines.push(`${check} ${qty} ${unit} ${name}`)
 	})
 
-	const btn = document.querySelector('.btn-share')
-	const originalText = btn.innerText
+	if (lines.length === 0) {
+		alert('Nie znaleziono produktów do udostępnienia!')
+		return
+	}
 
-	// 2. Sprawdzamy, czy to urządzenie mobilne (telefon/tablet)
+	const text = 'LISTA ZAKUPÓW\n' + new Date().toLocaleDateString() + '\n\n' + lines.join('\n')
+
+	const btn = document.querySelector('.btn-share')
+	const originalText = btn ? btn.innerText : ''
+
 	const isMobile = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile/i.test(navigator.userAgent)
 
-	// 3. Jeśli to Mobile ORAZ wspiera navigator.share
 	if (isMobile && navigator.share) {
 		try {
 			await navigator.share({
@@ -2714,30 +2761,31 @@ async function shareToKeep() {
 		} catch (err) {
 			console.log('Anulowano lub błąd udostępniania:', err)
 		}
-	}
-	// 4. Dla komputerów (nawet jeśli wspierają share) lub gdy share zawiedzie
-	else {
+	} else {
 		try {
-			// Kopiowanie do schowka
 			await navigator.clipboard.writeText(text)
 
-			// Wizualna zmiana przycisku
-			btn.innerText = '✅ SKOPIOWANO!'
-			btn.style.backgroundColor = '#2ecc71'
+			if (btn) {
+				btn.innerText = '✅ SKOPIOWANO!'
+				btn.style.backgroundColor = '#2ecc71'
+			}
 
-			// Otwieramy Google Keep w nowej karcie
 			window.open('https://keep.google.com/', '_blank')
 
-			// Reset przycisku
-			setTimeout(() => {
-				btn.innerText = originalText
-				btn.style.backgroundColor = ''
-			}, 2000)
+			if (btn) {
+				setTimeout(() => {
+					btn.innerText = originalText
+					btn.style.backgroundColor = ''
+				}, 2000)
+			}
 		} catch (err) {
+			console.error('Błąd kopiowania:', err)
 			alert('Wystąpił błąd podczas kopiowania. Spróbuj ręcznie.')
 		}
 	}
 }
+
+// --- MIGRACJA LISTY DO FIREBASE 
 
 async function migrateMealDatabaseToFirebaseKeys() {
 	try {
